@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+pnpm prettier:check && pnpm typescript:check && pnpm lint
