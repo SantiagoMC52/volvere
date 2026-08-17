@@ -40,6 +40,7 @@ Web personal para guardar restaurantes (y sitios en general) que quiero recordar
 - Nombre
 - Descripción libre (notas, qué pedí, qué tal estuvo, etc.)
 - Ubicación (texto libre, opcional — sin integración de mapas)
+- Teléfono (opcional, enlace `tel:` para llamar directo desde el móvil)
 - URL externa (opcional, si el sitio tiene web propia)
 - Galería de imágenes
 - Estado "¿Volver?" (Sí / No / Tal vez)
@@ -51,6 +52,7 @@ Formulario con:
 - Nombre (obligatorio)
 - Descripción
 - Ubicación (texto libre, opcional)
+- Teléfono (opcional)
 - URL (opcional)
 - Subida de una o varias imágenes
 - Selector "¿Volver?" (Sí / No / Tal vez)
@@ -74,6 +76,7 @@ Formulario con:
 | `name`         | text                        | obligatorio                 |
 | `description`  | text                        | opcional                    |
 | `location`     | text                        | opcional, texto libre       |
+| `phone`        | text                        | opcional                    |
 | `url`          | text                        | opcional                    |
 | `would_return` | enum (`yes`, `no`, `maybe`) |                             |
 | `created_at`   | timestamp                   |                             |

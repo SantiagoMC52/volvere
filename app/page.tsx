@@ -1,11 +1,29 @@
+import Link from 'next/link';
+
+import { getPlaces, wouldReturnLabel } from '@/lib/places';
+
 export default function Home() {
+	const places = getPlaces();
+
 	return (
-		<div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+		<div className="flex flex-1 flex-col gap-6 p-8">
 			<h1 className="text-3xl font-semibold tracking-tight">Volveré</h1>
-			<p className="text-muted-foreground max-w-md">
-				Todavía no hay nada que ver aquí — el listado de restaurantes
-				llega en el próximo paso.
-			</p>
+
+			<ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{places.map(place => (
+					<li key={place.id}>
+						<Link
+							href={`/places/${place.id}`}
+							className="border-border hover:bg-muted block rounded-lg border p-4 transition-colors"
+						>
+							<h2 className="font-medium">{place.name}</h2>
+							<p className="text-muted-foreground text-sm">
+								{wouldReturnLabel[place.wouldReturn]}
+							</p>
+						</Link>
+					</li>
+				))}
+			</ul>
 		</div>
 	);
 }
