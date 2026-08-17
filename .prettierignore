@@ -18,3 +18,10 @@ dist
 
 # Coverage
 coverage
+
+# Vendored/generated agent skill content (managed by `npx skills add`, not hand-edited)
+.agents/skills
+skills-lock.json
+
+# Local-only Claude Code settings (already gitignored, but present on disk)
+.claude/settings.local.json
