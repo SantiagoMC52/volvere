@@ -1,11 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Place, WouldReturn } from '@/types/place';
 
-export const wouldReturnLabel: Record<WouldReturn, string> = {
-	yes: '👍 Sí volvería',
-	no: '👎 No volvería',
-	maybe: '🤔 Tal vez'
-};
+export { wouldReturnLabel } from '@/lib/would-return';
 
 // Shape of a row as it comes back from public.places, before mapping to the
 // camelCase `Place` the UI works with.
@@ -70,4 +66,32 @@ export async function getPlaceById(id: string): Promise<Place | undefined> {
 	}
 
 	return data ? toPlace(data) : undefined;
+}
+
+// `userId` must come from the authenticated session, never from form data.
+export interface NewPlace {
+	userId: string;
+	name: string;
+	description: string | null;
+	location: string | null;
+	phone: string | null;
+	url: string | null;
+	wouldReturn: WouldReturn;
+}
+
+export async function insertPlace(place: NewPlace): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase.from('places').insert({
+		user_id: place.userId,
+		name: place.name,
+		description: place.description,
+		location: place.location,
+		phone: place.phone,
+		url: place.url,
+		would_return: place.wouldReturn
+	});
+
+	if (error) {
+		throw new Error(`No se ha podido guardar el sitio: ${error.message}`);
+	}
 }
