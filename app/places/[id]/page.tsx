@@ -9,14 +9,14 @@ export default async function PlacePage({
 	params: Promise<{ id: string }>;
 }) {
 	const { id } = await params;
-	const place = getPlaceById(id);
+	const place = await getPlaceById(id);
 
 	if (!place) {
 		notFound();
 	}
 
 	return (
-		<div className="flex flex-1 flex-col gap-4 p-8">
+		<div className="flex flex-1 flex-col gap-4 px-8 pb-8">
 			<Link
 				href="/"
 				className="text-muted-foreground w-fit text-sm hover:underline"

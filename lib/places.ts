@@ -1,14 +1,5 @@
-export type WouldReturn = 'yes' | 'no' | 'maybe';
-
-export interface Place {
-	id: string;
-	name: string;
-	description: string;
-	location?: string;
-	phone?: string;
-	url?: string;
-	wouldReturn: WouldReturn;
-}
+import { createClient } from '@/lib/supabase/server';
+import type { Place, WouldReturn } from '@/types/place';
 
 export const wouldReturnLabel: Record<WouldReturn, string> = {
 	yes: '👍 Sí volvería',
@@ -16,26 +7,67 @@ export const wouldReturnLabel: Record<WouldReturn, string> = {
 	maybe: '🤔 Tal vez'
 };
 
-// Datos de prueba. Esto se sustituirá por consultas a Supabase más adelante,
-// pero las funciones de abajo (getPlaces / getPlaceById) mantienen la misma
-// forma que tendrán entonces, para que el cambio sea sencillo.
-const places: Place[] = [
-	{
-		id: 'casa-pepe',
-		name: 'Casa Pepe',
-		description:
-			'Bar de tapas de toda la vida. Pedimos las croquetas de jamón y la tortilla: las croquetas espectaculares, la tortilla un poco sosa. Volveríamos solo por las croquetas.',
-		location: 'Calle Mayor 12, Madrid',
-		phone: '+34 912 345 678',
-		url: 'https://casapepe.example.com',
-		wouldReturn: 'yes'
-	}
-];
-
-export function getPlaces(): Place[] {
-	return places;
+// Shape of a row as it comes back from public.places, before mapping to the
+// camelCase `Place` the UI works with.
+interface PlaceRow {
+	id: string;
+	name: string;
+	description: string | null;
+	location: string | null;
+	phone: string | null;
+	url: string | null;
+	would_return: WouldReturn;
 }
 
-export function getPlaceById(id: string): Place | undefined {
-	return places.find(place => place.id === id);
+const PLACE_COLUMNS =
+	'id, name, description, location, phone, url, would_return';
+
+function toPlace(row: PlaceRow): Place {
+	return {
+		id: row.id,
+		name: row.name,
+		description: row.description ?? '',
+		location: row.location ?? undefined,
+		phone: row.phone ?? undefined,
+		url: row.url ?? undefined,
+		wouldReturn: row.would_return
+	};
+}
+
+// RLS on public.places restricts every query to the signed-in user's own
+// rows, so these already return the right data without filtering by user_id
+// here.
+export async function getPlaces(): Promise<Place[]> {
+	const supabase = await createClient();
+	const { data, error } = await supabase
+		.from('places')
+		.select(PLACE_COLUMNS)
+		.order('created_at', { ascending: false });
+
+	if (error) {
+		throw new Error(`No se han podido cargar los sitios: ${error.message}`);
+	}
+	console.log('data', data);
+
+	return (data ?? []).map(toPlace);
+}
+
+export async function getPlaceById(id: string): Promise<Place | undefined> {
+	const supabase = await createClient();
+	const { data, error } = await supabase
+		.from('places')
+		.select(PLACE_COLUMNS)
+		.eq('id', id)
+		.maybeSingle();
+
+	if (error) {
+		// Postgres rejects a non-uuid id (e.g. a stray slug) before RLS even
+		// runs — treat that the same as "not found" instead of a hard error.
+		if (error.code === '22P02') {
+			return undefined;
+		}
+		throw new Error(`No se ha podido cargar el sitio: ${error.message}`);
+	}
+
+	return data ? toPlace(data) : undefined;
 }

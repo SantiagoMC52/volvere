@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 
@@ -29,3 +30,16 @@ export async function createClient() {
 		}
 	);
 }
+
+// Wrapped in React.cache so every Server Component in the same request tree
+// (root layout, page, nested pages) shares one call instead of each hitting
+// Supabase Auth separately. Scoped to the current request only — see
+// https://react.dev/reference/react/cache.
+export const getUser = cache(async () => {
+	const supabase = await createClient();
+	const {
+		data: { user }
+	} = await supabase.auth.getUser();
+
+	return user;
+});
