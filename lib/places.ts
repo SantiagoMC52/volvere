@@ -68,9 +68,7 @@ export async function getPlaceById(id: string): Promise<Place | undefined> {
 	return data ? toPlace(data) : undefined;
 }
 
-// `userId` must come from the authenticated session, never from form data.
-export interface NewPlace {
-	userId: string;
+export interface PlaceInput {
 	name: string;
 	description: string | null;
 	location: string | null;
@@ -79,19 +77,46 @@ export interface NewPlace {
 	wouldReturn: WouldReturn;
 }
 
-export async function insertPlace(place: NewPlace): Promise<void> {
+function toRow(input: PlaceInput) {
+	return {
+		name: input.name,
+		description: input.description,
+		location: input.location,
+		phone: input.phone,
+		url: input.url,
+		would_return: input.wouldReturn
+	};
+}
+
+// `userId` is a separate argument, not part of `PlaceInput`, because it must
+// come from the authenticated session, never from form data.
+export async function insertPlace(
+	userId: string,
+	input: PlaceInput
+): Promise<void> {
 	const supabase = await createClient();
-	const { error } = await supabase.from('places').insert({
-		user_id: place.userId,
-		name: place.name,
-		description: place.description,
-		location: place.location,
-		phone: place.phone,
-		url: place.url,
-		would_return: place.wouldReturn
-	});
+	const { error } = await supabase
+		.from('places')
+		.insert({ user_id: userId, ...toRow(input) });
 
 	if (error) {
 		throw new Error(`No se ha podido guardar el sitio: ${error.message}`);
+	}
+}
+
+export async function updatePlace(
+	id: string,
+	input: PlaceInput
+): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase
+		.from('places')
+		.update(toRow(input))
+		.eq('id', id);
+
+	if (error) {
+		throw new Error(
+			`No se ha podido actualizar el sitio: ${error.message}`
+		);
 	}
 }
