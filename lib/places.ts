@@ -120,3 +120,12 @@ export async function updatePlace(
 		);
 	}
 }
+
+export async function deletePlace(id: string): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase.from('places').delete().eq('id', id);
+
+	if (error) {
+		throw new Error(`No se ha podido eliminar el sitio: ${error.message}`);
+	}
+}

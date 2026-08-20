@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { DeletePlaceButton } from '@/components/places/delete-place-button';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { getPlaceById, wouldReturnLabel } from '@/lib/places';
 
@@ -35,7 +36,13 @@ export default async function PlacePage({
 					</p>
 				</div>
 
-				<PlaceFormDialog place={place} />
+				<div className="flex gap-2">
+					<PlaceFormDialog place={place} />
+					<DeletePlaceButton
+						placeId={place.id}
+						placeName={place.name}
+					/>
+				</div>
 			</div>
 
 			<p className="text-muted-foreground max-w-prose">

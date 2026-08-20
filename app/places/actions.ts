@@ -1,8 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 import {
+	deletePlace as deletePlaceRow,
 	insertPlace,
 	updatePlace as updatePlaceRow,
 	type PlaceInput
@@ -105,4 +107,32 @@ export async function updatePlace(
 	revalidatePath('/');
 	revalidatePath(`/places/${id}`);
 	return { ok: true };
+}
+
+export type DeletePlaceState = { error: string } | null;
+
+export async function deletePlace(
+	id: string,
+	_prevState: DeletePlaceState,
+	_formData: FormData
+): Promise<DeletePlaceState> {
+	const user = await getUser();
+	if (!user) {
+		return { error: 'Debes iniciar sesión para eliminar un sitio.' };
+	}
+
+	try {
+		await deletePlaceRow(id);
+	} catch (err) {
+		const message =
+			err instanceof Error
+				? err.message
+				: 'No se ha podido eliminar el sitio.';
+		return { error: message };
+	}
+
+	revalidatePath('/');
+	// Throws internally — the detail page for a deleted place has nothing
+	// left to show, so send the user back to the listing.
+	redirect('/');
 }
