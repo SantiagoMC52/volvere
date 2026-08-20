@@ -1,12 +1,23 @@
 import Link from 'next/link';
 
+import { FlashToast } from '@/components/flash-toast';
+import { PlaceFormDialog } from '@/components/places/place-form-dialog';
+import { FLASH_PARAM } from '@/lib/flash';
 import { getPlaces, wouldReturnLabel } from '@/lib/places';
+import { firstParam } from '@/lib/utils';
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<'/'>) {
 	const places = await getPlaces();
+	const params = await searchParams;
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 px-8 pb-8">
+			<FlashToast flash={firstParam(params[FLASH_PARAM])} />
+
+			<div className="flex justify-end">
+				<PlaceFormDialog />
+			</div>
+
 			<ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{places.map(place => (
 					<li key={place.id}>

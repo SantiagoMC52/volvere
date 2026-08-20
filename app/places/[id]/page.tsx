@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { DeletePlaceButton } from '@/components/places/delete-place-button';
+import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { getPlaceById, wouldReturnLabel } from '@/lib/places';
 
 export default async function PlacePage({
@@ -24,13 +26,23 @@ export default async function PlacePage({
 				← Volver al listado
 			</Link>
 
-			<div className="flex flex-col gap-1">
-				<h1 className="text-3xl font-semibold tracking-tight">
-					{place.name}
-				</h1>
-				<p className="text-sm font-medium">
-					{wouldReturnLabel[place.wouldReturn]}
-				</p>
+			<div className="flex items-start justify-between gap-4">
+				<div className="flex flex-col gap-1">
+					<h1 className="text-3xl font-semibold tracking-tight">
+						{place.name}
+					</h1>
+					<p className="text-sm font-medium">
+						{wouldReturnLabel[place.wouldReturn]}
+					</p>
+				</div>
+
+				<div className="flex gap-2">
+					<PlaceFormDialog place={place} />
+					<DeletePlaceButton
+						placeId={place.id}
+						placeName={place.name}
+					/>
+				</div>
 			</div>
 
 			<p className="text-muted-foreground max-w-prose">

@@ -1,11 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Place, WouldReturn } from '@/types/place';
 
-export const wouldReturnLabel: Record<WouldReturn, string> = {
-	yes: '👍 Sí volvería',
-	no: '👎 No volvería',
-	maybe: '🤔 Tal vez'
-};
+export { wouldReturnLabel } from '@/lib/would-return';
 
 // Shape of a row as it comes back from public.places, before mapping to the
 // camelCase `Place` the UI works with.
@@ -70,4 +66,66 @@ export async function getPlaceById(id: string): Promise<Place | undefined> {
 	}
 
 	return data ? toPlace(data) : undefined;
+}
+
+export interface PlaceInput {
+	name: string;
+	description: string | null;
+	location: string | null;
+	phone: string | null;
+	url: string | null;
+	wouldReturn: WouldReturn;
+}
+
+function toRow(input: PlaceInput) {
+	return {
+		name: input.name,
+		description: input.description,
+		location: input.location,
+		phone: input.phone,
+		url: input.url,
+		would_return: input.wouldReturn
+	};
+}
+
+// `userId` is a separate argument, not part of `PlaceInput`, because it must
+// come from the authenticated session, never from form data.
+export async function insertPlace(
+	userId: string,
+	input: PlaceInput
+): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase
+		.from('places')
+		.insert({ user_id: userId, ...toRow(input) });
+
+	if (error) {
+		throw new Error(`No se ha podido guardar el sitio: ${error.message}`);
+	}
+}
+
+export async function updatePlace(
+	id: string,
+	input: PlaceInput
+): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase
+		.from('places')
+		.update(toRow(input))
+		.eq('id', id);
+
+	if (error) {
+		throw new Error(
+			`No se ha podido actualizar el sitio: ${error.message}`
+		);
+	}
+}
+
+export async function deletePlace(id: string): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase.from('places').delete().eq('id', id);
+
+	if (error) {
+		throw new Error(`No se ha podido eliminar el sitio: ${error.message}`);
+	}
 }
