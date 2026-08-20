@@ -6,6 +6,8 @@
 // The URL carries a key, not the text itself, so a crafted link can't make
 // the app display arbitrary messages to its own users.
 
+import { MAX_SOURCE_FILE_BYTES } from '@/lib/images';
+
 export type FlashType = 'success' | 'error' | 'info' | 'warning';
 
 export interface FlashMessage {
@@ -41,6 +43,18 @@ export const FLASH_MESSAGES = {
 	'place-delete-error': {
 		type: 'error',
 		description: 'Error al eliminar el sitio.'
+	},
+	'image-upload-error': {
+		type: 'error',
+		description: 'Error al subir las fotos.'
+	},
+	// Built from the constant, not written out: the size it quotes has to
+	// match the check that rejects the file.
+	'image-rejected': {
+		type: 'warning',
+		description: `Solo fotos JPG, PNG o WebP de menos de ${Math.round(
+			MAX_SOURCE_FILE_BYTES / 1024 / 1024
+		)} MB.`
 	}
 } as const satisfies Record<string, FlashMessage>;
 

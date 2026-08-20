@@ -43,8 +43,10 @@ export async function getPlaces(): Promise<Place[]> {
 	if (error) {
 		throw new Error(`No se han podido cargar los sitios: ${error.message}`);
 	}
-	console.log('data', data);
 
+	// Photos are deliberately not fetched here: the cards show name and status
+	// only, so pulling them in would cost a signing round trip per page load
+	// for something nothing renders.
 	return (data ?? []).map(toPlace);
 }
 
@@ -89,15 +91,18 @@ function toRow(input: PlaceInput) {
 }
 
 // `userId` is a separate argument, not part of `PlaceInput`, because it must
-// come from the authenticated session, never from form data.
+// come from the authenticated session, never from form data. `id` is supplied
+// instead of defaulted by the database because the photos are uploaded to
+// {user_id}/{place_id}/… before this row exists — see app/places/actions.ts.
 export async function insertPlace(
 	userId: string,
+	id: string,
 	input: PlaceInput
 ): Promise<void> {
 	const supabase = await createClient();
 	const { error } = await supabase
 		.from('places')
-		.insert({ user_id: userId, ...toRow(input) });
+		.insert({ id, user_id: userId, ...toRow(input) });
 
 	if (error) {
 		throw new Error(`No se ha podido guardar el sitio: ${error.message}`);
