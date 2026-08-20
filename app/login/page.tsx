@@ -1,12 +1,9 @@
 import { GoogleIcon } from '@/components/icons/google';
 import { Button } from '@/components/ui/button';
 import { loginErrorMessage, sanitizeNextPath } from '@/lib/auth';
+import { firstParam } from '@/lib/utils';
 
 import { signInWithGoogle } from './actions';
-
-function firstParam(value: string | string[] | undefined) {
-	return Array.isArray(value) ? value[0] : value;
-}
 
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 	const params = await searchParams;

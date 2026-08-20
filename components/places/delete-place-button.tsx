@@ -1,9 +1,9 @@
 'use client';
 
 import { Trash2Icon } from 'lucide-react';
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 
-import { deletePlace, type DeletePlaceState } from '@/app/places/actions';
+import { deletePlace, type PlaceFormState } from '@/app/places/actions';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -15,9 +15,10 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
+import { showFlash } from '@/components/flash-toast';
 import { Button } from '@/components/ui/button';
 
-const initialState: DeletePlaceState = null;
+const initialState: PlaceFormState = null;
 
 interface DeletePlaceButtonProps {
 	placeId: string;
@@ -28,9 +29,20 @@ export function DeletePlaceButton({
 	placeId,
 	placeName
 }: DeletePlaceButtonProps) {
-	const action = (prevState: DeletePlaceState, formData: FormData) =>
+	const action = (prevState: PlaceFormState, formData: FormData) =>
 		deletePlace(placeId, prevState, formData);
 	const [state, formAction, pending] = useActionState(action, initialState);
+
+	// Only the error case reaches this `state`: on success the action
+	// redirects (see its comment), which never resolves `state` to "ok" —
+	// that toast is carried by the URL and shown by FlashToast on the
+	// listing page. Toasting is a side effect on an external system (the
+	// toast manager), so it belongs in an effect, not in the render body.
+	useEffect(() => {
+		if (state && !state.ok) {
+			showFlash('place-delete-error');
+		}
+	}, [state]);
 
 	return (
 		<AlertDialog>
@@ -53,17 +65,11 @@ export function DeletePlaceButton({
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 
-				{state && 'error' in state && (
-					<p role="alert" className="text-destructive text-sm">
-						{state.error}
-					</p>
-				)}
-
 				{/*
 					AlertDialogAction is a plain Button under the hood (unlike
 					AlertDialogCancel, it doesn't auto-close) so submitting
-					this form on failure just re-renders `state.error` above
-					with the dialog still open, instead of closing blind.
+					this form on failure leaves the dialog open — the error
+					shows up as a toast instead of inline.
 				*/}
 				<form action={formAction}>
 					<AlertDialogFooter>

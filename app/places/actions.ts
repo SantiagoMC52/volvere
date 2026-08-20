@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import { withFlash } from '@/lib/flash';
 import {
 	deletePlace as deletePlaceRow,
 	insertPlace,
@@ -14,7 +15,9 @@ import type { WouldReturn } from '@/types/place';
 
 const WOULD_RETURN_VALUES: WouldReturn[] = ['yes', 'no', 'maybe'];
 
-export type PlaceFormState = { error: string } | { ok: true } | null;
+// Only whether it worked: the caller turns this into one of the generic
+// messages in lib/flash.ts. Anything more specific is logged, not returned.
+export type PlaceFormState = { ok: boolean } | null;
 
 function optionalString(value: FormDataEntryValue | null): string | null {
 	if (typeof value !== 'string') {
@@ -25,18 +28,19 @@ function optionalString(value: FormDataEntryValue | null): string | null {
 	return trimmed === '' ? null : trimmed;
 }
 
-function parsePlaceInput(formData: FormData): PlaceInput | { error: string } {
+// Returns null when the form data is unusable. The fields it rejects are all
+// marked `required` in the form, so this is a backstop against a hand-made
+// POST rather than something a user hits by filling the dialog in.
+function parsePlaceInput(formData: FormData): PlaceInput | null {
 	const name = optionalString(formData.get('name'));
-	if (!name) {
-		return { error: 'El nombre es obligatorio.' };
-	}
-
 	const wouldReturn = formData.get('wouldReturn');
+
 	if (
+		!name ||
 		typeof wouldReturn !== 'string' ||
 		!WOULD_RETURN_VALUES.includes(wouldReturn as WouldReturn)
 	) {
-		return { error: 'Selecciona si volverías o no.' };
+		return null;
 	}
 
 	return {
@@ -53,26 +57,25 @@ export async function createPlace(
 	_prevState: PlaceFormState,
 	formData: FormData
 ): Promise<PlaceFormState> {
-	// RLS would reject an anonymous insert anyway, but checking here lets us
-	// return a friendly message instead of a raw Postgres error.
+	// RLS would reject an anonymous insert anyway, but checking here keeps
+	// the failure a clean { ok: false } instead of a thrown Postgres error.
 	const user = await getUser();
 	if (!user) {
-		return { error: 'Debes iniciar sesión para añadir un sitio.' };
+		console.error('[places] createPlace: not signed in');
+		return { ok: false };
 	}
 
 	const input = parsePlaceInput(formData);
-	if ('error' in input) {
-		return input;
+	if (!input) {
+		console.error('[places] createPlace: invalid form data');
+		return { ok: false };
 	}
 
 	try {
 		await insertPlace(user.id, input);
 	} catch (err) {
-		const message =
-			err instanceof Error
-				? err.message
-				: 'No se ha podido guardar el sitio.';
-		return { error: message };
+		console.error('[places] createPlace failed:', err);
+		return { ok: false };
 	}
 
 	revalidatePath('/');
@@ -86,22 +89,21 @@ export async function updatePlace(
 ): Promise<PlaceFormState> {
 	const user = await getUser();
 	if (!user) {
-		return { error: 'Debes iniciar sesión para editar un sitio.' };
+		console.error('[places] updatePlace: not signed in');
+		return { ok: false };
 	}
 
 	const input = parsePlaceInput(formData);
-	if ('error' in input) {
-		return input;
+	if (!input) {
+		console.error('[places] updatePlace: invalid form data');
+		return { ok: false };
 	}
 
 	try {
 		await updatePlaceRow(id, input);
 	} catch (err) {
-		const message =
-			err instanceof Error
-				? err.message
-				: 'No se ha podido actualizar el sitio.';
-		return { error: message };
+		console.error('[places] updatePlace failed:', err);
+		return { ok: false };
 	}
 
 	revalidatePath('/');
@@ -109,30 +111,28 @@ export async function updatePlace(
 	return { ok: true };
 }
 
-export type DeletePlaceState = { error: string } | null;
-
 export async function deletePlace(
 	id: string,
-	_prevState: DeletePlaceState,
+	_prevState: PlaceFormState,
 	_formData: FormData
-): Promise<DeletePlaceState> {
+): Promise<PlaceFormState> {
 	const user = await getUser();
 	if (!user) {
-		return { error: 'Debes iniciar sesión para eliminar un sitio.' };
+		console.error('[places] deletePlace: not signed in');
+		return { ok: false };
 	}
 
 	try {
 		await deletePlaceRow(id);
 	} catch (err) {
-		const message =
-			err instanceof Error
-				? err.message
-				: 'No se ha podido eliminar el sitio.';
-		return { error: message };
+		console.error('[places] deletePlace failed:', err);
+		return { ok: false };
 	}
 
 	revalidatePath('/');
-	// Throws internally — the detail page for a deleted place has nothing
-	// left to show, so send the user back to the listing.
-	redirect('/');
+	// A plain `return` here would also re-render the current route (now
+	// gone) in the same response and hit notFound() before the client ever
+	// sees `state` update — redirect instead, so we never render that dead
+	// route. The success toast rides along on the URL; see lib/flash.ts.
+	redirect(withFlash('/', 'place-deleted'));
 }

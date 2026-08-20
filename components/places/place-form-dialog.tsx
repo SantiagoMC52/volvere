@@ -1,13 +1,14 @@
 'use client';
 
 import { PencilIcon } from 'lucide-react';
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 
 import {
 	createPlace,
 	updatePlace,
 	type PlaceFormState
 } from '@/app/places/actions';
+import { showFlash } from '@/components/flash-toast';
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -56,10 +57,27 @@ export function PlaceFormDialog({ place }: PlaceFormDialogProps) {
 	const [handledState, setHandledState] = useState(state);
 	if (state !== handledState) {
 		setHandledState(state);
-		if (state && 'ok' in state) {
+		// Leave it open on failure so the user can retry without retyping.
+		if (state?.ok) {
 			setOpen(false);
 		}
 	}
+
+	// Plain strings rather than `place` itself in the effect's deps: their
+	// values are stable across the re-render an edit triggers, so the toast
+	// isn't replayed when a new `place` object arrives.
+	const successFlash = place ? 'place-updated' : 'place-created';
+	const errorFlash = place ? 'place-update-error' : 'place-create-error';
+
+	// Toasting is a side effect on an external system (the toast manager),
+	// so unlike the state adjustment above it belongs in an effect. Both
+	// actions finish on this page, so the toast can fire directly here —
+	// no need for the redirect-surviving flash in lib/flash.ts.
+	useEffect(() => {
+		if (state) {
+			showFlash(state.ok ? successFlash : errorFlash);
+		}
+	}, [state, successFlash, errorFlash]);
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -169,12 +187,6 @@ export function PlaceFormDialog({ place }: PlaceFormDialogProps) {
 							</SelectContent>
 						</Select>
 					</div>
-
-					{state && 'error' in state && (
-						<p role="alert" className="text-destructive text-sm">
-							{state.error}
-						</p>
-					)}
 
 					<DialogFooter>
 						<DialogClose

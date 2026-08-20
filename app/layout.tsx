@@ -4,6 +4,7 @@ import './globals.css';
 
 import { signOut } from '@/app/login/actions';
 import { getUser } from '@/lib/supabase/server';
+import { Toaster } from '@/components/ui/toast';
 
 const geistSans = Geist({
 	variable: '--font-geist-sans',
@@ -53,6 +54,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
 				)}
 
 				{children}
+				<Toaster />
 			</body>
 		</html>
 	);
