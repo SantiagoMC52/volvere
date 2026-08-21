@@ -11,7 +11,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 	const params = await searchParams;
 
 	return (
-		<div className="flex flex-1 flex-col gap-6 px-8 pb-8">
+		<div className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
 			<FlashToast flash={firstParam(params[FLASH_PARAM])} />
 
 			<div className="flex justify-end">
