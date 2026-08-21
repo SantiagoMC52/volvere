@@ -15,7 +15,6 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 import { wouldReturnLabel } from '@/lib/would-return';
 import type { Place, WouldReturn } from '@/types/place';
 
@@ -28,15 +27,6 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 	{ value: 'maybe', label: wouldReturnLabel.maybe },
 	{ value: 'no', label: wouldReturnLabel.no }
 ];
-
-// Same three hues as WouldReturnBadge, applied to a chip instead of a pill —
-// only shown once that chip is the active filter.
-const STATUS_CHIP_ACTIVE: Record<StatusFilter, string> = {
-	all: 'border-primary/35 bg-primary/15 text-primary',
-	yes: 'border-status-yes/35 bg-status-yes/15 text-status-yes',
-	no: 'border-status-no/35 bg-status-no/15 text-status-no',
-	maybe: 'border-status-maybe/35 bg-status-maybe/15 text-status-maybe'
-};
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 	{ value: 'recent', label: 'Más recientes' },
@@ -216,29 +206,27 @@ export function PlacesList({
 				</div>
 			</div>
 
-			<div className="flex flex-wrap items-center justify-between gap-2">
-				<div className="flex flex-wrap items-center gap-2">
-					{STATUS_FILTERS.map(filter => {
-						const active = status === filter.value;
-
-						return (
-							<button
-								key={filter.value}
-								type="button"
-								aria-pressed={active}
-								onClick={() => setStatus(filter.value)}
-								className={cn(
-									'rounded-full border px-2.5 py-1 text-sm font-medium transition-colors',
-									active
-										? STATUS_CHIP_ACTIVE[filter.value]
-										: 'border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-								)}
-							>
+			<div className="flex flex-wrap items-center gap-2">
+				<Select
+					value={status}
+					onValueChange={value => setStatus(value as StatusFilter)}
+				>
+					<SelectTrigger size="sm" aria-label="Filtrar por estado">
+						<SelectValue>
+							{(value: StatusFilter | null) =>
+								STATUS_FILTERS.find(f => f.value === value)
+									?.label ?? STATUS_FILTERS[0].label
+							}
+						</SelectValue>
+					</SelectTrigger>
+					<SelectContent>
+						{STATUS_FILTERS.map(filter => (
+							<SelectItem key={filter.value} value={filter.value}>
 								{filter.label}
-							</button>
-						);
-					})}
-				</div>
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
 
 				<Select
 					value={sort}
