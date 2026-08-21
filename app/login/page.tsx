@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 						type="submit"
 						variant="outline"
 						size="lg"
-						className="w-full cursor-pointer"
+						className="w-full"
 					>
 						<GoogleIcon />
 						Continuar con Google

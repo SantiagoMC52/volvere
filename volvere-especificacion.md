@@ -31,8 +31,8 @@ Web personal para guardar restaurantes (y sitios en general) que quiero recordar
 
 ### 3.1 Listado de sitios
 
-- Vista tipo tarjetas (grid), con foto principal, nombre y un indicador rápido de "¿Volver?".
-- Filtro rápido por estado: 👍 Sí volvería / 👎 No volvería / 🤔 Tal vez.
+- Vista tipo tarjetas (grid), con nombre y un indicador rápido de "¿Volver?". Sin foto: las imágenes se ven solo en el detalle, así el listado no paga una firma de URL por sitio en cada carga.
+- (Pendiente) Filtro rápido por estado: 👍 Sí volvería / 👎 No volvería / 🤔 Tal vez.
 - (Opcional futuro) Buscador por nombre y filtro por tags/tipo.
 
 ### 3.2 Detalle de sitio
