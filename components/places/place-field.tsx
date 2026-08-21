@@ -21,9 +21,14 @@ export function PlaceField({
 	children
 }: PlaceFieldProps) {
 	return (
-		<section className="bg-card flex flex-col gap-2 rounded-xl border p-4">
-			<h2 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wide uppercase">
-				<Icon className="size-3.5" aria-hidden="true" />
+		<section className="border-border/70 bg-card ring-black/3 dark:ring-white/5 flex flex-col gap-2 rounded-2xl border p-4 shadow-sm ring-1">
+			<h2 className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wide uppercase">
+				<span
+					aria-hidden="true"
+					className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full"
+				>
+					<Icon className="size-3.5" />
+				</span>
 				{label}
 			</h2>
 

@@ -46,7 +46,10 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 					<h1 className="text-3xl font-semibold tracking-tight">
 						{place.name}
 					</h1>
-					<WouldReturnBadge value={place.wouldReturn} />
+					<WouldReturnBadge
+						value={place.wouldReturn}
+						className="px-3 py-1 text-sm"
+					/>
 				</div>
 
 				<div className="flex gap-2">

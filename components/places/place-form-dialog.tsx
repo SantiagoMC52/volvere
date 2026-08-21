@@ -299,7 +299,13 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 							defaultValue={place?.wouldReturn}
 						>
 							<SelectTrigger id="wouldReturn" className="w-full">
-								<SelectValue placeholder="Selecciona una opción" />
+								<SelectValue placeholder="Selecciona una opción">
+									{(value: WouldReturn | null) =>
+										value
+											? wouldReturnLabel[value]
+											: 'Selecciona una opción'
+									}
+								</SelectValue>
 							</SelectTrigger>
 							<SelectContent>
 								{WOULD_RETURN_OPTIONS.map(value => (
