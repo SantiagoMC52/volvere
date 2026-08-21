@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 
 import { DeletePlaceButton } from '@/components/places/delete-place-button';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
+import { PlaceGallery } from '@/components/places/place-gallery';
+import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById, wouldReturnLabel } from '@/lib/places';
 
 export default async function PlacePage({
@@ -16,6 +18,10 @@ export default async function PlacePage({
 	if (!place) {
 		notFound();
 	}
+
+	// After notFound(), not alongside it: getPlaceById absorbs a malformed
+	// id, but querying the photos with one would throw.
+	const images = await getPlaceImages(id);
 
 	return (
 		<div className="flex flex-1 flex-col gap-4 px-8 pb-8">
@@ -37,7 +43,7 @@ export default async function PlacePage({
 				</div>
 
 				<div className="flex gap-2">
-					<PlaceFormDialog place={place} />
+					<PlaceFormDialog place={place} images={images} />
 					<DeletePlaceButton
 						placeId={place.id}
 						placeName={place.name}
@@ -70,6 +76,8 @@ export default async function PlacePage({
 					Sitio web
 				</a>
 			)}
+
+			<PlaceGallery images={images} placeName={place.name} />
 		</div>
 	);
 }
