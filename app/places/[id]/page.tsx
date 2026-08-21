@@ -24,7 +24,7 @@ export default async function PlacePage({
 	const images = await getPlaceImages(id);
 
 	return (
-		<div className="flex flex-1 flex-col gap-4 px-8 pb-8">
+		<div className="flex flex-1 flex-col gap-4 px-4 pb-8 sm:px-8">
 			<Link
 				href="/"
 				className="text-muted-foreground w-fit text-sm hover:underline"
