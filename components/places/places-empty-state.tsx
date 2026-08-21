@@ -7,10 +7,18 @@ import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 // on screen — the same action twice would just be noise.
 export function PlacesEmptyState() {
 	return (
-		<div className="border-border bg-card/50 flex flex-1 flex-col items-center justify-center gap-4 rounded-xl border border-dashed px-6 py-16 text-center">
+		<div className="border-border bg-card/50 relative flex flex-1 flex-col items-center justify-center gap-4 overflow-hidden rounded-2xl border border-dashed px-6 py-16 text-center">
+			{/* A soft glow behind the icon, not just a flat tint chip — the
+			    empty state is the first thing a new user sees, so it carries
+			    a little more colour than the rest of the app. */}
 			<span
 				aria-hidden="true"
-				className="bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full"
+				className="bg-primary/20 absolute top-6 left-1/2 -z-10 size-40 -translate-x-1/2 rounded-full blur-3xl"
+			/>
+
+			<span
+				aria-hidden="true"
+				className="bg-primary/10 text-primary ring-primary/15 relative flex size-14 items-center justify-center rounded-full ring-4"
 			>
 				<UtensilsCrossedIcon className="size-6" />
 			</span>
