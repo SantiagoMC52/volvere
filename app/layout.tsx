@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Link from 'next/link';
 import './globals.css';
 
 import { getUser } from '@/lib/supabase/server';
@@ -34,14 +35,19 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
 
 	return (
 		<html
-			lang="en"
+			lang="es"
 			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
 		>
 			<body className="min-h-full flex flex-col">
 				{user && (
 					<header className="flex items-center justify-between gap-4 px-4 pt-6 pb-4 sm:px-8 sm:pt-8">
 						<h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-							Volveré
+							<Link
+								href="/"
+								className="focus-visible:ring-ring/50 rounded-sm outline-none transition-opacity hover:opacity-70 focus-visible:ring-3"
+							>
+								Volveré
+							</Link>
 						</h1>
 
 						<UserMenu

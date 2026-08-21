@@ -6,7 +6,8 @@ import {
 	useActionState,
 	useEffect,
 	useRef,
-	useState
+	useState,
+	type ChangeEvent
 } from 'react';
 
 import {
@@ -41,6 +42,7 @@ import {
 	SelectValue
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { digitsOnly } from '@/lib/phone';
 import { removeUploadedImages, uploadPlaceImages } from '@/lib/upload-images';
 import { wouldReturnLabel } from '@/lib/would-return';
 import type { Place, PlaceImage, WouldReturn } from '@/types/place';
@@ -48,6 +50,27 @@ import type { Place, PlaceImage, WouldReturn } from '@/types/place';
 const WOULD_RETURN_OPTIONS: WouldReturn[] = ['yes', 'no', 'maybe'];
 
 const initialState: PlaceFormState = null;
+
+// Keeps the phone field to digits, whether they were typed, pasted or dropped
+// in. The input stays uncontrolled like the rest of the form, so the value is
+// rewritten in place; the caret then goes back to however many digits preceded
+// it, which is where the user was typing.
+function keepDigitsOnly(event: ChangeEvent<HTMLInputElement>) {
+	const input = event.currentTarget;
+	const { value } = input;
+	const digits = digitsOnly(value);
+
+	if (digits === value) {
+		return;
+	}
+
+	const caret = digitsOnly(
+		value.slice(0, input.selectionStart ?? value.length)
+	).length;
+
+	input.value = digits;
+	input.setSelectionRange(caret, caret);
+}
 
 interface PlaceFormDialogProps {
 	// Place to edit; omit to render the "add" flow instead.
@@ -243,7 +266,17 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 							id="phone"
 							name="phone"
 							type="tel"
-							defaultValue={place?.phone}
+							inputMode="numeric"
+							// Backstop for the rare case the change handler
+							// never runs (autofill on submit, no JS).
+							pattern="[0-9]*"
+							onChange={keepDigitsOnly}
+							// A number saved before this rule could still
+							// carry separators; drop them so an edit doesn't
+							// start out invalid.
+							defaultValue={
+								place?.phone && digitsOnly(place.phone)
+							}
 						/>
 					</div>
 
