@@ -15,6 +15,7 @@ import {
 	updatePlace as updatePlaceRow,
 	type PlaceInput
 } from '@/lib/places';
+import { isDigitsOnly } from '@/lib/phone';
 import { getUser } from '@/lib/supabase/server';
 import type { WouldReturn } from '@/types/place';
 
@@ -41,10 +42,14 @@ function optionalString(value: FormDataEntryValue | null): string | null {
 // POST rather than something a user hits by filling the dialog in.
 function parsePlaceInput(formData: FormData): PlaceInput | null {
 	const name = optionalString(formData.get('name'));
+	const phone = optionalString(formData.get('phone'));
 	const wouldReturn = formData.get('wouldReturn');
 
 	if (
 		!name ||
+		// The form only lets digits into this field, so anything else here
+		// bypassed it.
+		(phone !== null && !isDigitsOnly(phone)) ||
 		typeof wouldReturn !== 'string' ||
 		!WOULD_RETURN_VALUES.includes(wouldReturn as WouldReturn)
 	) {
@@ -55,7 +60,7 @@ function parsePlaceInput(formData: FormData): PlaceInput | null {
 		name,
 		description: optionalString(formData.get('description')),
 		location: optionalString(formData.get('location')),
-		phone: optionalString(formData.get('phone')),
+		phone,
 		url: optionalString(formData.get('url')),
 		wouldReturn: wouldReturn as WouldReturn
 	};
