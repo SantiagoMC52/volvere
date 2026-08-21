@@ -2,7 +2,14 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
+/*
+	No `@custom-variant dark` here on purpose. shadcn's init writes one that
+	rebinds `dark:` to a `.dark` class, and nothing in this app ever sets that
+	class — so every `dark:` utility in components/ui was dead. Dropping it
+	restores Tailwind v4's built-in `dark:`, which is already
+	`@media (prefers-color-scheme: dark)`. Adding a manual theme switch later
+	means putting that line back plus a class toggle.
+*/
 
 @theme inline {
 	--color-background: var(--background);
@@ -30,6 +37,9 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	--color-status-yes: var(--status-yes);
+	--color-status-no: var(--status-no);
+	--color-status-maybe: var(--status-maybe);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
@@ -51,73 +61,114 @@
 	--radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+	Indigo as the primary, amber as the accent. The neutrals are not grey:
+	they carry a trace of the same blue hue (chroma 0.003–0.025 around hue 265)
+	so the whole surface reads as one family instead of washed out.
+
+	Indigo was picked over a warm or green primary because 👍/👎/🤔 need green,
+	red and amber to stay readable as status colours — a primary in any of those
+	hues would compete with them.
+
+	Every pair below clears WCAG AA (4.5:1) for small text, in both themes.
+
+	--status-* are the three "would return" colours. They are tuned to be legible
+	as *text* on the page background, which is why the light-mode amber is a deep
+	ochre rather than a bright yellow: real amber on white is about 2:1, unusable
+	as ink. The badge paints a 10% tint of the same colour behind it.
+*/
 :root {
-	--background: oklch(1 0 0);
-	--foreground: oklch(0.145 0 0);
+	color-scheme: light;
+
+	--background: oklch(0.99 0.003 260);
+	--foreground: oklch(0.2 0.02 265);
 	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
+	--card-foreground: oklch(0.2 0.02 265);
 	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.205 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.97 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.97 0 0);
-	--muted-foreground: oklch(0.556 0 0);
-	--accent: oklch(0.97 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--border: oklch(0.922 0 0);
-	--input: oklch(0.922 0 0);
-	--ring: oklch(0.708 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
+	--popover-foreground: oklch(0.2 0.02 265);
+	--primary: oklch(0.52 0.18 275);
+	--primary-foreground: oklch(0.985 0.005 275);
+	--secondary: oklch(0.96 0.008 265);
+	--secondary-foreground: oklch(0.3 0.03 265);
+	--muted: oklch(0.965 0.006 265);
+	--muted-foreground: oklch(0.5 0.025 265);
+	/* Hover/focus surface for menu and select items — deliberately a quiet
+	   neutral, not the amber. The vivid accent is --highlight. */
+	--accent: oklch(0.96 0.008 265);
+	--accent-foreground: oklch(0.3 0.03 265);
+	--status-yes: oklch(0.52 0.13 150);
+	--status-no: oklch(0.55 0.2 25);
+	--status-maybe: oklch(0.52 0.12 75);
+	--destructive: oklch(0.55 0.2 25);
+	--border: oklch(0.91 0.008 265);
+	--input: oklch(0.91 0.008 265);
+	/* The focus ring is the brand indigo rather than a grey, so tabbing
+	   through the app looks intentional. */
+	--ring: oklch(0.52 0.18 275);
+	--chart-1: oklch(0.52 0.18 275);
+	--chart-2: oklch(0.78 0.15 80);
+	--chart-3: oklch(0.62 0.13 220);
+	--chart-4: oklch(0.6 0.14 330);
+	--chart-5: oklch(0.65 0.14 150);
 	--radius: 0.625rem;
-	--sidebar: oklch(0.985 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.97 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.922 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
+	--sidebar: oklch(0.98 0.005 265);
+	--sidebar-foreground: oklch(0.2 0.02 265);
+	--sidebar-primary: oklch(0.52 0.18 275);
+	--sidebar-primary-foreground: oklch(0.985 0.005 275);
+	--sidebar-accent: oklch(0.96 0.008 265);
+	--sidebar-accent-foreground: oklch(0.3 0.03 265);
+	--sidebar-border: oklch(0.91 0.008 265);
+	--sidebar-ring: oklch(0.52 0.18 275);
 }
 
-.dark {
-	--background: oklch(0.145 0 0);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(0.205 0 0);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(0.205 0 0);
-	--popover-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(0.205 0 0);
-	--secondary: oklch(0.269 0 0);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(0.269 0 0);
-	--muted-foreground: oklch(0.708 0 0);
-	--accent: oklch(0.269 0 0);
-	--accent-foreground: oklch(0.985 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 15%);
-	--ring: oklch(0.556 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--sidebar: oklch(0.205 0 0);
-	--sidebar-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.488 0.243 264.376);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.269 0 0);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-ring: oklch(0.556 0 0);
+/*
+	Follows the operating system: no toggle, no persisted state, no flash of the
+	wrong theme on first paint. Only the tokens are redefined — `color-scheme`
+	included, so native scrollbars and form controls follow along.
+*/
+@media (prefers-color-scheme: dark) {
+	:root {
+		color-scheme: dark;
+
+		--background: oklch(0.17 0.015 265);
+		--foreground: oklch(0.96 0.005 265);
+		/* Lifted off the background rather than darker than it: on a dark
+		   surface, elevation reads as lighter. */
+		--card: oklch(0.21 0.017 265);
+		--card-foreground: oklch(0.96 0.005 265);
+		--popover: oklch(0.21 0.017 265);
+		--popover-foreground: oklch(0.96 0.005 265);
+		/* Lighter and less saturated than the light-mode indigo: the same
+		   #4F58CE on a dark background is too dim to read as the accent. */
+		--primary: oklch(0.68 0.16 275);
+		--primary-foreground: oklch(0.17 0.03 275);
+		--secondary: oklch(0.27 0.02 265);
+		--secondary-foreground: oklch(0.96 0.005 265);
+		--muted: oklch(0.27 0.02 265);
+		--muted-foreground: oklch(0.72 0.02 265);
+		--accent: oklch(0.27 0.02 265);
+		--accent-foreground: oklch(0.96 0.005 265);
+		--status-yes: oklch(0.75 0.14 150);
+		--status-no: oklch(0.7 0.17 25);
+		--status-maybe: oklch(0.8 0.13 80);
+		--destructive: oklch(0.7 0.17 25);
+		--border: oklch(1 0 0 / 12%);
+		--input: oklch(1 0 0 / 15%);
+		--ring: oklch(0.68 0.16 275);
+		--chart-1: oklch(0.68 0.16 275);
+		--chart-2: oklch(0.82 0.14 80);
+		--chart-3: oklch(0.7 0.12 220);
+		--chart-4: oklch(0.68 0.13 330);
+		--chart-5: oklch(0.72 0.13 150);
+		--sidebar: oklch(0.21 0.017 265);
+		--sidebar-foreground: oklch(0.96 0.005 265);
+		--sidebar-primary: oklch(0.68 0.16 275);
+		--sidebar-primary-foreground: oklch(0.17 0.03 275);
+		--sidebar-accent: oklch(0.27 0.02 265);
+		--sidebar-accent-foreground: oklch(0.96 0.005 265);
+		--sidebar-border: oklch(1 0 0 / 12%);
+		--sidebar-ring: oklch(0.68 0.16 275);
+	}
 }
 
 @layer base {

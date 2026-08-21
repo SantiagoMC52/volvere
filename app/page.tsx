@@ -2,8 +2,9 @@ import Link from 'next/link';
 
 import { FlashToast } from '@/components/flash-toast';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
+import { WouldReturnBadge } from '@/components/places/would-return-badge';
 import { FLASH_PARAM } from '@/lib/flash';
-import { getPlaces, wouldReturnLabel } from '@/lib/places';
+import { getPlaces } from '@/lib/places';
 import { firstParam } from '@/lib/utils';
 
 export default async function Home({ searchParams }: PageProps<'/'>) {
@@ -26,9 +27,10 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 							className="border-border hover:bg-muted block rounded-lg border p-4 transition-colors"
 						>
 							<h2 className="font-medium">{place.name}</h2>
-							<p className="text-muted-foreground text-sm">
-								{wouldReturnLabel[place.wouldReturn]}
-							</p>
+							<WouldReturnBadge
+								value={place.wouldReturn}
+								className="mt-2"
+							/>
 						</Link>
 					</li>
 				))}
