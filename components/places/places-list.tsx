@@ -171,83 +171,120 @@ export function PlacesList({
 
 	return (
 		<div className="flex flex-1 flex-col gap-5">
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<p className="text-muted-foreground text-sm">
+			{/*
+				One flex container for every control, ordered rather than
+				nested, so the two layouts can differ: stacked on mobile as
+				count → search → filters → add (the primary action sits low,
+				where a thumb reaches it, and search stays next to the filters
+				it belongs with), and on desktop as count | search + add with
+				the filters wrapping onto their own row via `sm:basis-full`.
+			*/}
+			<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-5">
+				<p className="text-muted-foreground order-1 text-sm sm:mr-auto">
 					{countLabel(filtered.length, places.length)}
 				</p>
 
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-					<div className="relative sm:w-64">
-						<SearchIcon
-							className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-							aria-hidden="true"
-						/>
-						<Input
-							type="search"
-							value={query}
-							onChange={event => setQuery(event.target.value)}
-							placeholder="Buscar sitios…"
-							aria-label="Buscar sitios"
-							className="pl-8"
-						/>
-						{query && (
-							<button
-								type="button"
-								onClick={() => setQuery('')}
-								aria-label="Borrar búsqueda"
-								className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
-							>
-								<XIcon className="size-3.5" />
-							</button>
-						)}
-					</div>
+				<div className="relative order-2 sm:w-64">
+					<SearchIcon
+						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+						aria-hidden="true"
+					/>
+					<Input
+						type="search"
+						value={query}
+						onChange={event => setQuery(event.target.value)}
+						placeholder="Buscar sitios…"
+						aria-label="Buscar sitios"
+						// `pr-9` keeps the text clear of the clear button.
+						// WebKit draws its own clear button for
+						// `type="search"`, which would sit on top of ours —
+						// hidden here rather than dropping ours, since the
+						// native one can't be sized to a usable target.
+						className="h-9 pr-9 pl-8 sm:h-8 [&::-webkit-search-cancel-button]:appearance-none"
+					/>
+					{query && (
+						<button
+							type="button"
+							onClick={() => setQuery('')}
+							aria-label="Borrar búsqueda"
+							// size-6 is the 24px minimum WCAG 2.2 asks of a
+							// touch target; the icon inside stays small.
+							className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1.5 flex size-6 -translate-y-1/2 items-center justify-center rounded-md"
+						>
+							<XIcon className="size-3.5" />
+						</button>
+					)}
+				</div>
 
+				{/* Stretches to full width on mobile, hugs its label on desktop. */}
+				<div className="order-4 flex flex-col sm:order-3">
 					<PlaceFormDialog />
 				</div>
-			</div>
 
-			<div className="flex flex-wrap items-center gap-2">
-				<Select
-					value={status}
-					onValueChange={value => setStatus(value as StatusFilter)}
-				>
-					<SelectTrigger size="sm" aria-label="Filtrar por estado">
-						<SelectValue>
-							{(value: StatusFilter | null) =>
-								STATUS_FILTERS.find(f => f.value === value)
-									?.label ?? STATUS_FILTERS[0].label
-							}
-						</SelectValue>
-					</SelectTrigger>
-					<SelectContent>
-						{STATUS_FILTERS.map(filter => (
-							<SelectItem key={filter.value} value={filter.value}>
-								{filter.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+				<div className="order-3 flex flex-wrap items-center gap-2 sm:order-4 sm:basis-full">
+					<Select
+						value={status}
+						onValueChange={value =>
+							setStatus(value as StatusFilter)
+						}
+					>
+						{/*
+							`min-h` rather than `h`: the trigger sets its
+							height with a `data-[size=…]` variant, which
+							outranks a plain height class here.
+						*/}
+						<SelectTrigger
+							size="sm"
+							aria-label="Filtrar por estado"
+							className="min-h-9 sm:min-h-0"
+						>
+							<SelectValue>
+								{(value: StatusFilter | null) =>
+									STATUS_FILTERS.find(f => f.value === value)
+										?.label ?? STATUS_FILTERS[0].label
+								}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{STATUS_FILTERS.map(filter => (
+								<SelectItem
+									key={filter.value}
+									value={filter.value}
+								>
+									{filter.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 
-				<Select
-					value={sort}
-					onValueChange={value => setSort(value as SortOption)}
-				>
-					<SelectTrigger size="sm" aria-label="Ordenar sitios">
-						<SelectValue>
-							{(value: SortOption | null) =>
-								SORT_OPTIONS.find(o => o.value === value)
-									?.label ?? SORT_OPTIONS[0].label
-							}
-						</SelectValue>
-					</SelectTrigger>
-					<SelectContent>
-						{SORT_OPTIONS.map(option => (
-							<SelectItem key={option.value} value={option.value}>
-								{option.label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+					<Select
+						value={sort}
+						onValueChange={value => setSort(value as SortOption)}
+					>
+						<SelectTrigger
+							size="sm"
+							aria-label="Ordenar sitios"
+							className="min-h-9 sm:min-h-0"
+						>
+							<SelectValue>
+								{(value: SortOption | null) =>
+									SORT_OPTIONS.find(o => o.value === value)
+										?.label ?? SORT_OPTIONS[0].label
+								}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent>
+							{SORT_OPTIONS.map(option => (
+								<SelectItem
+									key={option.value}
+									value={option.value}
+								>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 
 			{filtered.length === 0 ? (
