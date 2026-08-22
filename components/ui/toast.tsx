@@ -49,10 +49,16 @@ function Toast({ className, ...props }: ToastPrimitive.Root.Props) {
 				// `type` a toast was added with). Success reads green and
 				// error reads red end to end — background, border and icon
 				// — instead of colour living on the icon alone.
-				'data-[type=success]:border-status-yes/30 data-[type=success]:bg-status-yes/10',
-				'data-[type=error]:border-status-no/30 data-[type=error]:bg-status-no/10',
-				'data-[type=warning]:border-status-maybe/30 data-[type=warning]:bg-status-maybe/10',
-				'data-[type=info]:border-primary/25 data-[type=info]:bg-primary/8',
+				//
+				// The tint is mixed *into* --popover rather than written as
+				// `bg-status-yes/10`: an alpha fill replaces the opaque
+				// `bg-popover` above instead of layering over it, which left
+				// the toast at 10% opacity and the page legible through it.
+				// color-mix keeps the same shade and stays opaque.
+				'data-[type=success]:border-status-yes/30 data-[type=success]:bg-[color-mix(in_oklch,var(--status-yes)_10%,var(--popover))]',
+				'data-[type=error]:border-status-no/30 data-[type=error]:bg-[color-mix(in_oklch,var(--status-no)_10%,var(--popover))]',
+				'data-[type=warning]:border-status-maybe/30 data-[type=warning]:bg-[color-mix(in_oklch,var(--status-maybe)_10%,var(--popover))]',
+				'data-[type=info]:border-primary/25 data-[type=info]:bg-[color-mix(in_oklch,var(--primary)_8%,var(--popover))]',
 				'[--gap:0.75rem] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))] [--peek:0.75rem] [--scale:calc(max(0,1-(var(--toast-index)*0.1)))] [--shrink:calc(1-var(--scale))]',
 				'h-(--height) transform-[translateX(var(--toast-swipe-movement-x))_translateY(calc(var(--toast-swipe-movement-y)-(var(--toast-index)*var(--peek))-(var(--shrink)*var(--height))))_scale(var(--scale))] [transition:transform_500ms_cubic-bezier(0.22,1,0.36,1),opacity_500ms,height_150ms]',
 				"after:absolute after:top-full after:left-0 after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
