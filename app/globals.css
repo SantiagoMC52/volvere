@@ -178,29 +178,38 @@
 	}
 }
 
+/* A flat fill read as dull against the rest of the redesign. Two soft, fixed
+   glows in the brand hues (blue primary, amber status-maybe) sit behind the
+   content instead — low enough alpha that body text anywhere on the page still
+   clears the AA contrast the tokens above were tuned for.
+
+   Pulled out of `body` into a utility so a sticky element can repaint the very
+   same backdrop. `fixed` anchors the gradients to the viewport rather than to
+   the element, so any box using this lines up pixel for pixel with the page
+   behind it: an opaque strip that hides whatever scrolls underneath without
+   reading as a band cutting across the design. */
+@utility bg-app {
+	background-color: var(--background);
+	background-image:
+		radial-gradient(
+			1100px circle at 12% -12%,
+			color-mix(in oklch, var(--primary) 12%, transparent),
+			transparent 60%
+		),
+		radial-gradient(
+			900px circle at 100% 0%,
+			color-mix(in oklch, var(--status-maybe) 10%, transparent),
+			transparent 55%
+		);
+	background-attachment: fixed;
+}
+
 @layer base {
 	* {
 		@apply border-border outline-ring/50;
 	}
 	body {
-		@apply bg-background text-foreground;
-		/* A flat fill read as dull against the rest of the redesign. Two soft,
-		   fixed glows in the brand hues (blue primary, amber status-maybe)
-		   sit behind the content instead — low enough alpha that body text
-		   anywhere on the page still clears the AA contrast the tokens above
-		   were tuned for. */
-		background-image:
-			radial-gradient(
-				1100px circle at 12% -12%,
-				color-mix(in oklch, var(--primary) 12%, transparent),
-				transparent 60%
-			),
-			radial-gradient(
-				900px circle at 100% 0%,
-				color-mix(in oklch, var(--status-maybe) 10%, transparent),
-				transparent 55%
-			);
-		background-attachment: fixed;
+		@apply bg-app text-foreground;
 	}
 	html {
 		@apply font-sans;
