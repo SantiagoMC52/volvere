@@ -25,3 +25,6 @@ skills-lock.json
 
 # Local-only Claude Code settings (already gitignored, but present on disk)
 .claude/settings.local.json
+
+# Supabase CLI local state (already gitignored, but present on disk)
+supabase/.temp
