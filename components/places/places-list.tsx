@@ -1,7 +1,7 @@
 'use client';
 
 import { SearchIcon, XIcon } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { PlaceCard } from '@/components/places/place-card';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
@@ -15,6 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { wouldReturnLabel } from '@/lib/would-return';
 import type { Place, WouldReturn } from '@/types/place';
 
@@ -37,15 +38,14 @@ const QUERY_PARAM = 'q';
 const STATUS_PARAM = 'status';
 const SORT_PARAM = 'sort';
 
-function isStatusFilter(value: string | undefined): value is StatusFilter {
-	return (
-		value !== undefined &&
-		STATUS_FILTERS.some(filter => filter.value === value)
-	);
-}
-
-function isSortOption(value: string | undefined): value is SortOption {
-	return value !== undefined && SORT_OPTIONS.some(o => o.value === value);
+// A query string is user-editable, so anything read from it has to be checked
+// against the options that actually exist before it reaches state.
+function optionOrDefault<T extends string>(
+	options: { value: T }[],
+	raw: string | undefined,
+	fallback: T
+): T {
+	return options.some(option => option.value === raw) ? (raw as T) : fallback;
 }
 
 // Accent- and case-insensitive: "cordoba" should still find "Córdoba".
@@ -77,10 +77,9 @@ function countLabel(filtered: number, total: number): string {
 
 interface PlacesListProps {
 	places: Place[];
-	// Raw `?q=` / `?status=` / `?sort=` values, read by the page's Server
-	// Component and passed down as props rather than read here with
-	// useSearchParams, which would force this subtree out of prerendering and
-	// require a Suspense boundary — same reasoning as FlashToast.
+	// Read by the page's Server Component and passed down, rather than read
+	// here with useSearchParams — that would force this subtree out of
+	// prerendering and require a Suspense boundary, same as FlashToast.
 	initialQuery: string | undefined;
 	initialStatus: string | undefined;
 	initialSort: string | undefined;
@@ -93,38 +92,57 @@ export function PlacesList({
 	initialSort
 }: PlacesListProps) {
 	const [query, setQuery] = useState(initialQuery ?? '');
-	const [status, setStatus] = useState<StatusFilter>(
-		isStatusFilter(initialStatus) ? initialStatus : 'all'
+	const [status, setStatus] = useState(() =>
+		optionOrDefault(STATUS_FILTERS, initialStatus, 'all')
 	);
-	const [sort, setSort] = useState<SortOption>(
-		isSortOption(initialSort) ? initialSort : 'recent'
+	const [sort, setSort] = useState(() =>
+		optionOrDefault(SORT_OPTIONS, initialSort, 'recent')
 	);
 
-	// The URL is only a bookmark of the current filter, not the source of
-	// truth for it — writing to it with `history.replaceState` keeps it in
-	// sync without going through next/navigation's router, which would
-	// re-fetch this Server Component for something already filtered
-	// client-side (see the discussion that led here).
+	// Only drives the toolbar's separating border: a permanent one would draw a
+	// line across the design while it still sits in the flow. No CSS selector
+	// for "currently stuck" has real support yet, but it pins at `top-0`, so its
+	// own box answers the question.
+	const toolbarRef = useRef<HTMLDivElement>(null);
+	const [stuck, setStuck] = useState(false);
+
+	useEffect(() => {
+		const toolbar = toolbarRef.current;
+		if (!toolbar) {
+			return;
+		}
+
+		const update = () => setStuck(toolbar.getBoundingClientRect().top < 1);
+
+		update();
+		window.addEventListener('scroll', update, { passive: true });
+		window.addEventListener('resize', update);
+
+		return () => {
+			window.removeEventListener('scroll', update);
+			window.removeEventListener('resize', update);
+		};
+	}, []);
+
+	// The URL only bookmarks the current view, it isn't the source of truth for
+	// it — `history.replaceState` keeps it in sync without going through
+	// next/navigation's router, which would re-fetch the Server Component for
+	// something already filtered client-side.
 	useEffect(() => {
 		const timeout = setTimeout(() => {
 			const params = new URLSearchParams(window.location.search);
+			const state: [string, string, string][] = [
+				[QUERY_PARAM, query, ''],
+				[STATUS_PARAM, status, 'all'],
+				[SORT_PARAM, sort, 'recent']
+			];
 
-			if (query) {
-				params.set(QUERY_PARAM, query);
-			} else {
-				params.delete(QUERY_PARAM);
-			}
-
-			if (status !== 'all') {
-				params.set(STATUS_PARAM, status);
-			} else {
-				params.delete(STATUS_PARAM);
-			}
-
-			if (sort !== 'recent') {
-				params.set(SORT_PARAM, sort);
-			} else {
-				params.delete(SORT_PARAM);
+			for (const [key, value, fallback] of state) {
+				if (value === fallback) {
+					params.delete(key);
+				} else {
+					params.set(key, value);
+				}
 			}
 
 			const search = params.toString();
@@ -150,9 +168,8 @@ export function PlacesList({
 		[places, query, status]
 	);
 
-	// `places` already comes back "most recent first" from getPlaces(), so
-	// 'recent' is just the filtered list as-is — 'oldest' is the same order
-	// reversed, no need to re-sort by date.
+	// getPlaces() already returns newest first, so 'oldest' is that same list
+	// reversed — no need to sort by date.
 	const sorted = useMemo(
 		() => (sort === 'oldest' ? [...filtered].reverse() : filtered),
 		[filtered, sort]
@@ -171,20 +188,31 @@ export function PlacesList({
 
 	return (
 		<div className="flex flex-1 flex-col gap-5">
-			{/*
-				One flex container for every control, ordered rather than
-				nested, so the two layouts can differ: stacked on mobile as
-				count → search → filters → add (the primary action sits low,
-				where a thumb reaches it, and search stays next to the filters
-				it belongs with), and on desktop as count | search + add with
-				the filters wrapping onto their own row via `sm:basis-full`.
-			*/}
-			<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-5">
-				<p className="text-muted-foreground order-1 text-sm sm:mr-auto">
-					{countLabel(filtered.length, places.length)}
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+				<p className="text-muted-foreground text-sm">
+					{countLabel(sorted.length, places.length)}
 				</p>
 
-				<div className="relative order-2 sm:w-64">
+				<div className="flex flex-col">
+					<PlaceFormDialog />
+				</div>
+			</div>
+
+			{/*
+				`bg-app` repaints the page's exact backdrop instead of tinting
+				it: `--background` is near-white, so a translucent fill washed
+				the gradients out into a pale band. Opaque, the cards scroll
+				cleanly underneath. The negative margins cancel the page's own
+				padding so the strip reaches the screen edges.
+			*/}
+			<div
+				ref={toolbarRef}
+				className={cn(
+					'bg-app sticky top-0 z-10 -mx-4 flex flex-col gap-3 border-b px-4 py-3 transition-colors duration-200 sm:-mx-8 sm:flex-row sm:items-center sm:px-8',
+					stuck ? 'border-border/60' : 'border-transparent'
+				)}
+			>
+				<div className="relative sm:w-64">
 					<SearchIcon
 						className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
 						aria-hidden="true"
@@ -195,11 +223,9 @@ export function PlacesList({
 						onChange={event => setQuery(event.target.value)}
 						placeholder="Buscar sitios…"
 						aria-label="Buscar sitios"
-						// `pr-9` keeps the text clear of the clear button.
-						// WebKit draws its own clear button for
-						// `type="search"`, which would sit on top of ours —
-						// hidden here rather than dropping ours, since the
-						// native one can't be sized to a usable target.
+						// WebKit draws its own clear button for `type="search"`
+						// that would sit on top of ours, and it can't be sized
+						// to a usable target — hidden rather than dropping ours.
 						className="h-9 pr-9 pl-8 sm:h-8 [&::-webkit-search-cancel-button]:appearance-none"
 					/>
 					{query && (
@@ -216,34 +242,23 @@ export function PlacesList({
 					)}
 				</div>
 
-				{/* Stretches to full width on mobile, hugs its label on desktop. */}
-				<div className="order-4 flex flex-col sm:order-3">
-					<PlaceFormDialog />
-				</div>
-
-				<div className="order-3 flex flex-wrap items-center gap-2 sm:order-4 sm:basis-full">
+				<div className="flex flex-wrap items-center gap-2">
 					<Select
+						items={STATUS_FILTERS}
 						value={status}
-						onValueChange={value =>
-							setStatus(value as StatusFilter)
-						}
+						onValueChange={value => setStatus(value ?? 'all')}
 					>
 						{/*
-							`min-h` rather than `h`: the trigger sets its
-							height with a `data-[size=…]` variant, which
-							outranks a plain height class here.
+							`min-h` rather than `h`: the trigger sets its height
+							with a `data-[size=…]` variant, which outranks a
+							plain height class here.
 						*/}
 						<SelectTrigger
 							size="sm"
 							aria-label="Filtrar por estado"
 							className="min-h-9 sm:min-h-0"
 						>
-							<SelectValue>
-								{(value: StatusFilter | null) =>
-									STATUS_FILTERS.find(f => f.value === value)
-										?.label ?? STATUS_FILTERS[0].label
-								}
-							</SelectValue>
+							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
 							{STATUS_FILTERS.map(filter => (
@@ -258,20 +273,16 @@ export function PlacesList({
 					</Select>
 
 					<Select
+						items={SORT_OPTIONS}
 						value={sort}
-						onValueChange={value => setSort(value as SortOption)}
+						onValueChange={value => setSort(value ?? 'recent')}
 					>
 						<SelectTrigger
 							size="sm"
 							aria-label="Ordenar sitios"
 							className="min-h-9 sm:min-h-0"
 						>
-							<SelectValue>
-								{(value: SortOption | null) =>
-									SORT_OPTIONS.find(o => o.value === value)
-										?.label ?? SORT_OPTIONS[0].label
-								}
-							</SelectValue>
+							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
 							{SORT_OPTIONS.map(option => (
@@ -287,7 +298,7 @@ export function PlacesList({
 				</div>
 			</div>
 
-			{filtered.length === 0 ? (
+			{sorted.length === 0 ? (
 				<div className="border-border bg-card/50 flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-16 text-center">
 					<p className="text-muted-foreground max-w-sm text-sm text-balance">
 						Ningún sitio coincide con la búsqueda o el filtro.
