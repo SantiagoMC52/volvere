@@ -41,6 +41,7 @@
 		"eslint-plugin-unused-imports": "4.4.1",
 		"husky": "^9.1.7",
 		"prettier": "3.9.6",
+		"supabase": "^2.115.0",
 		"tailwindcss": "^4",
 		"typescript": "^5"
 	},
