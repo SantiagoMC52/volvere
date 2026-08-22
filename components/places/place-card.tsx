@@ -38,7 +38,7 @@ export function PlaceCard({ place, index }: PlaceCardProps) {
 				<span
 					aria-hidden="true"
 					className={cn(
-						'absolute inset-x-0 top-0 h-1 opacity-80 transition-opacity group-hover:opacity-100',
+						'absolute inset-y-0 left-0 w-1 opacity-80 transition-opacity group-hover:opacity-100',
 						STATUS_ACCENT[place.wouldReturn]
 					)}
 				/>
