@@ -25,7 +25,14 @@ const eslintConfig = defineConfig([
 					args: 'after-used',
 					argsIgnorePattern: '^_'
 				}
-			]
+			],
+			// Photos are already resized and re-encoded to WebP in the browser
+			// before they reach Storage (lib/images.ts), so there is nothing
+			// left for next/image to optimize. They're also served from
+			// short-lived signed URLs — the bucket is private — and a URL that
+			// changes every hour would miss the image cache every time. Plain
+			// <img> is the right call for this app.
+			'@next/next/no-img-element': 'off'
 		}
 	},
 	// Must stay last: turns off ESLint stylistic rules that conflict with
