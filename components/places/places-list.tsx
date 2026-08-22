@@ -20,7 +20,7 @@ import { wouldReturnLabel } from '@/lib/would-return';
 import type { Place, WouldReturn } from '@/types/place';
 
 type StatusFilter = WouldReturn | 'all';
-type SortOption = 'recent' | 'oldest';
+type SortOption = 'recent' | 'oldest' | 'status';
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 	{ value: 'all', label: 'Todos' },
@@ -31,8 +31,11 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 	{ value: 'recent', label: 'Más recientes' },
-	{ value: 'oldest', label: 'Más antiguos' }
+	{ value: 'oldest', label: 'Más antiguos' },
+	{ value: 'status', label: 'Primero los que sí' }
 ];
+
+const STATUS_RANK: Record<WouldReturn, number> = { yes: 0, maybe: 1, no: 2 };
 
 const QUERY_PARAM = 'q';
 const STATUS_PARAM = 'status';
@@ -169,11 +172,23 @@ export function PlacesList({
 	);
 
 	// getPlaces() already returns newest first, so 'oldest' is that same list
-	// reversed — no need to sort by date.
-	const sorted = useMemo(
-		() => (sort === 'oldest' ? [...filtered].reverse() : filtered),
-		[filtered, sort]
-	);
+	// reversed — no need to sort by date. 'status' only groups on top of that
+	// order: Array.prototype.sort is stable, so each group still runs newest
+	// first without comparing dates either.
+	const sorted = useMemo(() => {
+		if (sort === 'oldest') {
+			return [...filtered].reverse();
+		}
+
+		if (sort === 'status') {
+			return [...filtered].sort(
+				(a, b) =>
+					STATUS_RANK[a.wouldReturn] - STATUS_RANK[b.wouldReturn]
+			);
+		}
+
+		return filtered;
+	}, [filtered, sort]);
 
 	if (places.length === 0) {
 		return <PlacesEmptyState />;
