@@ -7,7 +7,8 @@ import {
 	useEffect,
 	useRef,
 	useState,
-	type ChangeEvent
+	type ChangeEvent,
+	type SubmitEvent
 } from 'react';
 
 import {
@@ -150,7 +151,18 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 
 	// Wraps the action: the photos have to be in Storage first, since all the
 	// Server Action receives is their object keys.
-	async function handleSubmit(formData: FormData) {
+	//
+	// Deliberately `onSubmit` and not `<form action>`: React asks the form to
+	// reset the moment an action is dispatched through it, before that action
+	// even runs, so any failed save wiped every field the user had typed.
+	// Dispatching by hand keeps them; the form still starts clean on reopen,
+	// because the `key` below remounts it.
+	async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+		event.preventDefault();
+		// Read before the first await: React clears `currentTarget` once the
+		// handler returns.
+		const formData = new FormData(event.currentTarget);
+
 		// An edit reuses the place's id; a new place needs one now, because
 		// the upload path contains it. Generated here rather than in state so
 		// it can't differ between the server and client renders.
@@ -185,9 +197,8 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 		}
 		formData.set('id', placeId);
 
-		// React opens a transition around a <form action>, but awaiting the
-		// upload steps outside it: without reopening one, `pending` never
-		// flips to true.
+		// `formAction` has to run inside a transition for `pending` to flip to
+		// true — nothing opened one here, since the submit is handled by hand.
 		startTransition(() => {
 			formAction(formData);
 		});
@@ -217,11 +228,13 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 					the page and hands this dialog a new `place` while its
 					inputs are still mounted with the old `defaultValue` —
 					which Base UI's Input flags as an uncontrolled-field
-					warning.
+					warning. It is also what empties the form after a save,
+					now that the submit no longer goes through the `action`
+					prop that used to reset it.
 				*/}
 				<form
 					key={String(open)}
-					action={handleSubmit}
+					onSubmit={event => void handleSubmit(event)}
 					className="flex flex-col gap-4"
 				>
 					<DialogHeader>
