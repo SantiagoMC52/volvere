@@ -1,7 +1,7 @@
 // Limits and compression for place photos. Supabase's image transformations
 // are a Pro-plan feature, so whatever lands in the bucket is what gets served:
 // resizing and re-encoding happen here, in the browser. A ~4 MB phone photo
-// comes out around 200 KB.
+// comes out around 300 KB.
 //
 // compressImage runs when the photo is picked, not when the form is saved, so
 // the preview shows the exact bytes that will be stored and an unreadable file
@@ -23,7 +23,7 @@ const HEIC_MIME_TYPES = ['image/heic', 'image/heif'];
 // empty `type` — so HEIC is the one format recognised by extension too.
 const HEIC_EXTENSIONS = ['.heic', '.heif'];
 
-// The input side. The bucket itself only allows image/webp, since that is all
+// The input side. The bucket itself only allows image/jpeg, since that is all
 // compressImage produces.
 //
 // HEIC is in: iOS only transcodes to JPEG on the way out of the Photos picker,
@@ -48,7 +48,23 @@ export const IMAGE_INPUT_ACCEPT = [
 export const MAX_SOURCE_FILE_BYTES = 30 * 1024 * 1024;
 
 const MAX_DIMENSION = 1600;
-const WEBP_QUALITY = 0.8;
+const OUTPUT_QUALITY = 0.8;
+
+// Everything comes out JPEG, whatever went in. WebP would save around a
+// quarter of the bytes, but WebKit — every Safari, and every browser on iOS
+// since they all run on it — cannot encode WebP from a canvas, and doesn't say
+// so: asked for a type it can't write, a browser falls back to PNG in silence,
+// and a PNG of a photo runs to several MB, past what the bucket accepts. That
+// was every upload from an iPhone failing.
+//
+// One format is one code path, the same on every device instead of one that
+// only misbehaves on hardware you may not have to hand. At 1600 px the bytes
+// it costs don't show.
+export const OUTPUT_MIME_TYPE = 'image/jpeg';
+
+// Lives next to the type it has to agree with, so an object key can't end up
+// describing something its bytes aren't.
+export const OUTPUT_FILE_EXTENSION = 'jpg';
 
 // Catches honest mistakes like picking a video, not attacks — `type` is
 // whatever the browser chooses to report. The real guards are the bucket's
@@ -113,7 +129,7 @@ async function decodeImage(file: File): Promise<ImageBitmap> {
 }
 
 // Scales the longest side down to MAX_DIMENSION (never up) and re-encodes as
-// WebP. Browser-only.
+// JPEG. Browser-only.
 export async function compressImage(file: File): Promise<Blob> {
 	const bitmap = await decodeImage(file);
 
@@ -130,13 +146,24 @@ export async function compressImage(file: File): Promise<Blob> {
 		if (!context) {
 			throw new Error('Canvas 2D no disponible');
 		}
+		// JPEG has no alpha channel, and a fresh canvas is transparent black:
+		// without this, the see-through parts of a PNG come out black instead
+		// of disappearing the way they looked in the picker.
+		context.fillStyle = '#ffffff';
+		context.fillRect(0, 0, canvas.width, canvas.height);
 		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
 		const blob = await new Promise<Blob | null>(resolve =>
-			canvas.toBlob(resolve, 'image/webp', WEBP_QUALITY)
+			canvas.toBlob(resolve, OUTPUT_MIME_TYPE, OUTPUT_QUALITY)
 		);
 		if (!blob) {
 			throw new Error('toBlob no ha devuelto nada');
+		}
+		// The PNG fallback described above, caught where it happened. Left
+		// alone it surfaces much later as a bucket rejecting bytes for a reason
+		// nothing on screen can explain.
+		if (blob.type !== OUTPUT_MIME_TYPE) {
+			throw new Error(`toBlob ha devuelto ${blob.type}`);
 		}
 
 		return blob;
