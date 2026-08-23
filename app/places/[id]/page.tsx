@@ -12,7 +12,9 @@ import { DeletePlaceButton } from '@/components/places/delete-place-button';
 import { PlaceField } from '@/components/places/place-field';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { PlaceGallery } from '@/components/places/place-gallery';
+import { PlaceLink } from '@/components/places/place-link';
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
+import { toLocationLink } from '@/lib/location';
 import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById } from '@/lib/places';
 
@@ -31,6 +33,10 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 	// `description` is '' rather than null when empty (see lib/places.ts), and a
 	// field holding only spaces should count as empty too.
 	const description = place.description.trim();
+
+	// Either a link pasted from a maps app or an address typed by hand; both
+	// end up pointing at a map. See lib/location.ts.
+	const locationLink = place.location && toLocationLink(place.location);
 
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-8">
@@ -79,8 +85,10 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 					icon={MapPinIcon}
 					empty="Sin ubicación."
 				>
-					{place.location && (
-						<p className="text-sm">{place.location}</p>
+					{locationLink && (
+						<PlaceLink href={locationLink.href} external>
+							{locationLink.label}
+						</PlaceLink>
 					)}
 				</PlaceField>
 
@@ -90,30 +98,25 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 					empty="Sin teléfono."
 				>
 					{place.phone && (
-						<a
+						<PlaceLink
 							href={`tel:${place.phone.replace(/[^+\d]/g, '')}`}
-							className="text-primary w-fit text-sm underline underline-offset-4"
+							icon={PhoneIcon}
 						>
 							{place.phone}
-						</a>
+						</PlaceLink>
 					)}
 				</PlaceField>
 			</div>
 
 			<PlaceField label="Web" icon={GlobeIcon} empty="Sin web.">
 				{place.url && (
-					<a
-						href={place.url}
-						target="_blank"
-						rel="noreferrer"
-						className="text-primary w-fit text-sm break-all underline underline-offset-4"
-					>
+					<PlaceLink href={place.url} external>
 						{/* The scheme is noise once it is a link, and dropping it
 						    keeps a long URL from pushing the card wider. */}
 						{place.url
 							.replace(/^https?:\/\//, '')
 							.replace(/\/$/, '')}
-					</a>
+					</PlaceLink>
 				)}
 			</PlaceField>
 
