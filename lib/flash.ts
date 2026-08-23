@@ -48,11 +48,18 @@ export const FLASH_MESSAGES = {
 		type: 'error',
 		description: 'Error al subir las fotos.'
 	},
+	// Fires while the picker is still fresh in mind, hence "alguna foto": the
+	// rest of the batch does get added.
+	'image-process-error': {
+		type: 'error',
+		description:
+			'No se ha podido procesar alguna foto. Prueba a convertirla a JPG.'
+	},
 	// Built from the constant, not written out: the size it quotes has to
 	// match the check that rejects the file.
 	'image-rejected': {
 		type: 'warning',
-		description: `Solo fotos JPG, PNG o WebP de menos de ${Math.round(
+		description: `Solo fotos JPG, PNG, HEIC o WebP de menos de ${Math.round(
 			MAX_SOURCE_FILE_BYTES / 1024 / 1024
 		)} MB.`
 	}

@@ -1,23 +1,24 @@
 'use client';
 
-import { ImagePlusIcon, XIcon } from 'lucide-react';
+import { ImagePlusIcon, Loader2Icon, XIcon } from 'lucide-react';
 import { useEffect, useRef, type ChangeEvent } from 'react';
 
 import { showFlash } from '@/components/flash-toast';
 import { PlacePhoto } from '@/components/places/place-photo';
 import { Label } from '@/components/ui/label';
 import {
-	ACCEPTED_IMAGE_MIME_TYPES,
+	compressImage,
+	IMAGE_INPUT_ACCEPT,
 	isAcceptedImage,
 	MAX_IMAGES_PER_PLACE
 } from '@/lib/images';
 import type { PlaceImage } from '@/types/place';
 
-// A photo the form is holding on to: already in Storage (edit mode), or
-// just picked and still to be compressed and uploaded. `url` is a signed URL
+// A photo the form is holding on to: already in Storage (edit mode), or just
+// picked, already compressed and still to be uploaded. `url` is a signed URL
 // in the first case and an object URL in the second.
 export type PickedImage = { key: string; url: string } & (
-	{ kind: 'stored'; path: string } | { kind: 'new'; file: File }
+	{ kind: 'stored'; path: string } | { kind: 'new'; blob: Blob }
 );
 
 export function toPickedImages(images: PlaceImage[]): PickedImage[] {
@@ -32,12 +33,19 @@ export function toPickedImages(images: PlaceImage[]): PickedImage[] {
 interface PlaceImagesFieldProps {
 	images: PickedImage[];
 	onChange: (images: PickedImage[]) => void;
+	// Compressing is async and the photos only reach `images` once it finishes,
+	// so the form has to know: saving mid-conversion would drop them silently.
+	// The parent owns the flag and passes it back as `disabled`.
+	processing: boolean;
+	onProcessingChange: (processing: boolean) => void;
 	disabled?: boolean;
 }
 
 export function PlaceImagesField({
 	images,
 	onChange,
+	processing,
+	onProcessingChange,
 	disabled
 }: PlaceImagesFieldProps) {
 	// Object URLs are not garbage collected on their own, so every one this
@@ -50,7 +58,7 @@ export function PlaceImagesField({
 		[]
 	);
 
-	function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+	async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
 		const picked = Array.from(event.target.files ?? []);
 		// Lets the same file be picked again right after removing it —
 		// otherwise the value wouldn't change and `onChange` never fires.
@@ -66,19 +74,50 @@ export function PlaceImagesField({
 
 		const room = MAX_IMAGES_PER_PLACE - images.length;
 		// Trimmed silently: the counter above already shows the room left.
-		const added = usable.slice(0, room).map(file => {
-			const url = URL.createObjectURL(file);
-			objectUrls.current.push(url);
+		const accepted = usable.slice(0, room);
+		if (accepted.length === 0) {
+			return;
+		}
 
-			return {
-				key: crypto.randomUUID(),
-				url,
-				kind: 'new' as const,
-				file
-			};
-		});
+		// Compressed here rather than on submit: it turns a HEIC into
+		// something this browser can actually paint, so the preview below is
+		// the stored photo itself, and a file nothing can read is rejected
+		// while the user is still looking at the picker.
+		onProcessingChange(true);
+		const added: PickedImage[] = [];
+		let failed = 0;
+		try {
+			for (const file of accepted) {
+				try {
+					const blob = await compressImage(file);
+					const url = URL.createObjectURL(blob);
+					objectUrls.current.push(url);
+
+					added.push({
+						key: crypto.randomUUID(),
+						url,
+						kind: 'new',
+						blob
+					});
+				} catch (err) {
+					// One bad file doesn't sink the rest of the batch.
+					console.error('[places] image processing failed:', err);
+					failed++;
+				}
+			}
+		} finally {
+			onProcessingChange(false);
+		}
+
+		// One toast for the batch, however many files went wrong.
+		if (failed > 0) {
+			showFlash('image-process-error');
+		}
 
 		if (added.length > 0) {
+			// `images` is what it was when the picker closed, which still
+			// holds: every control that could change it is disabled while
+			// this runs.
 			onChange([...images, ...added]);
 		}
 	}
@@ -124,14 +163,26 @@ export function PlaceImagesField({
 					</div>
 				))}
 
+				{/* A HEIC in a browser without a native decoder takes a few
+					seconds, so the tile says what is happening rather than
+					just sitting there greyed out. */}
 				{!isFull && (
 					<Label
 						htmlFor="images"
 						data-disabled={disabled || undefined}
 						className="border-border text-muted-foreground hover:bg-muted flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed transition-colors data-disabled:pointer-events-none data-disabled:opacity-50"
 					>
-						<ImagePlusIcon className="size-5" />
-						<span className="text-xs">Añadir</span>
+						{processing ? (
+							<>
+								<Loader2Icon className="size-5 animate-spin" />
+								<span className="text-xs">Procesando…</span>
+							</>
+						) : (
+							<>
+								<ImagePlusIcon className="size-5" />
+								<span className="text-xs">Añadir</span>
+							</>
+						)}
 					</Label>
 				)}
 			</div>
@@ -144,10 +195,10 @@ export function PlaceImagesField({
 			<input
 				id="images"
 				type="file"
-				accept={ACCEPTED_IMAGE_MIME_TYPES.join(',')}
+				accept={IMAGE_INPUT_ACCEPT}
 				multiple
 				disabled={disabled || isFull}
-				onChange={handleFiles}
+				onChange={event => void handleFiles(event)}
 				className="hidden"
 			/>
 		</div>
