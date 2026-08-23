@@ -2,14 +2,15 @@
 // Supabase client. Split from lib/images.ts so the Server Action can read the
 // limits there without dragging the client bundle along.
 
-import { compressImage, IMAGE_BUCKET } from '@/lib/images';
+import { IMAGE_BUCKET } from '@/lib/images';
 import { createClient } from '@/lib/supabase/client';
 
 // Uploads to {user_id}/{place_id}/{uuid}.webp — the layout the bucket's RLS
-// policies key off — and returns the paths in the same order.
+// policies key off — and returns the paths in the same order. The blobs are
+// already WebP: compressImage ran when the photos were picked.
 export async function uploadPlaceImages(
 	placeId: string,
-	files: File[]
+	blobs: Blob[]
 ): Promise<string[]> {
 	const supabase = createClient();
 	const {
@@ -24,8 +25,7 @@ export async function uploadPlaceImages(
 	// list of already-written objects accurate if one of them fails.
 	const paths: string[] = [];
 	try {
-		for (const file of files) {
-			const blob = await compressImage(file);
+		for (const blob of blobs) {
 			const path = `${user.id}/${placeId}/${crypto.randomUUID()}.webp`;
 
 			const { error } = await supabase.storage

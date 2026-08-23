@@ -2,6 +2,7 @@ import { MapPinIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
+import { toLocationLink } from '@/lib/location';
 import { cn } from '@/lib/utils';
 import type { Place, WouldReturn } from '@/types/place';
 
@@ -53,7 +54,12 @@ export function PlaceCard({ place, index }: PlaceCardProps) {
 							className="size-3.5 shrink-0"
 							aria-hidden="true"
 						/>
-						<span className="truncate">{place.location}</span>
+						{/* Label only, not a link: the whole card already is
+						    one, and anchors can't be nested. The map link
+						    itself lives on the detail page. */}
+						<span className="truncate">
+							{toLocationLink(place.location).label}
+						</span>
 					</p>
 				)}
 
