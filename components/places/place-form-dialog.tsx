@@ -253,9 +253,12 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="location">Ubicación</Label>
+						{/* Deliberately not type="url": an address typed by
+						    hand is as valid here as a pasted link. */}
 						<Input
 							id="location"
 							name="location"
+							placeholder="Dirección o enlace de Google Maps"
 							defaultValue={place?.location}
 						/>
 					</div>
