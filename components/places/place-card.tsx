@@ -1,8 +1,6 @@
-import { MapPinIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
-import { toLocationLink } from '@/lib/location';
 import { cn } from '@/lib/utils';
 import type { Place, WouldReturn } from '@/types/place';
 
@@ -43,32 +41,15 @@ export function PlaceCard({ place, index }: PlaceCardProps) {
 						STATUS_ACCENT[place.wouldReturn]
 					)}
 				/>
-
 				<h2 className="pr-1 leading-snug font-semibold tracking-tight text-balance">
 					{place.name}
 				</h2>
-
-				{place.location && (
-					<p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-						<MapPinIcon
-							className="size-3.5 shrink-0"
-							aria-hidden="true"
-						/>
-						{/* Label only, not a link: the whole card already is
-						    one, and anchors can't be nested. The map link
-						    itself lives on the detail page. */}
-						<span className="truncate">
-							{toLocationLink(place.location).label}
-						</span>
-					</p>
-				)}
 
 				{description && (
 					<p className="text-muted-foreground line-clamp-2 text-sm">
 						{description}
 					</p>
 				)}
-
 				<WouldReturnBadge
 					value={place.wouldReturn}
 					className="mt-auto self-start"
