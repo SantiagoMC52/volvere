@@ -220,7 +220,14 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 					)
 				}
 			/>
-			<DialogContent className="sm:max-w-md">
+			{/*
+				`p-0` moves the padding onto the three bands below, so the
+				scroll container is the fields band alone. Scrolling the popup
+				itself instead would leave its bottom padding as scrollable
+				area under a sticky footer, and the content shows through
+				there.
+			*/}
+			<DialogContent className="flex flex-col overflow-hidden p-0 sm:max-w-md">
 				{/*
 					`key` forces a remount on every open/close so the
 					uncontrolled inputs below always initialize from the
@@ -235,9 +242,9 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 				<form
 					key={String(open)}
 					onSubmit={event => void handleSubmit(event)}
-					className="flex flex-col gap-4"
+					className="flex min-h-0 flex-col"
 				>
-					<DialogHeader>
+					<DialogHeader className="shrink-0 p-4 pb-0">
 						<DialogTitle>
 							{place ? 'Editar sitio' : 'Añadir sitio'}
 						</DialogTitle>
@@ -247,99 +254,107 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="name">Nombre</Label>
-						<Input
-							id="name"
-							name="name"
-							defaultValue={place?.name}
-							required
-						/>
-					</div>
+					{/* `min-h-0` is what lets this shrink below its content
+					    height so the overflow actually scrolls — without it a
+					    flex item floors at its intrinsic size. */}
+					<div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="name">Nombre</Label>
+							<Input
+								id="name"
+								name="name"
+								defaultValue={place?.name}
+								required
+							/>
+						</div>
 
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="description">Descripción</Label>
-						<Textarea
-							id="description"
-							name="description"
-							rows={3}
-							defaultValue={place?.description}
-						/>
-					</div>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="description">Descripción</Label>
+							<Textarea
+								id="description"
+								name="description"
+								rows={3}
+								defaultValue={place?.description}
+							/>
+						</div>
 
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="location">Ubicación</Label>
-						{/* Deliberately not type="url": an address typed by
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="location">Ubicación</Label>
+							{/* Deliberately not type="url": an address typed by
 						    hand is as valid here as a pasted link. */}
-						<Input
-							id="location"
-							name="location"
-							placeholder="Dirección o enlace de Google Maps"
-							defaultValue={place?.location}
+							<Input
+								id="location"
+								name="location"
+								placeholder="Dirección o enlace de Google Maps"
+								defaultValue={place?.location}
+							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="phone">Teléfono</Label>
+							<Input
+								id="phone"
+								name="phone"
+								type="tel"
+								inputMode="numeric"
+								// Backstop for the rare case the change handler
+								// never runs (autofill on submit, no JS).
+								pattern="[0-9]*"
+								onChange={keepDigitsOnly}
+								// A number saved before this rule could still
+								// carry separators; drop them so an edit doesn't
+								// start out invalid.
+								defaultValue={
+									place?.phone && digitsOnly(place.phone)
+								}
+							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="url">URL</Label>
+							<Input
+								id="url"
+								name="url"
+								type="url"
+								placeholder="https://…"
+								defaultValue={place?.url}
+							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="wouldReturn">¿Volverías?</Label>
+							<Select
+								name="wouldReturn"
+								required
+								items={wouldReturnLabel}
+								defaultValue={place?.wouldReturn}
+							>
+								<SelectTrigger
+									id="wouldReturn"
+									className="w-full"
+								>
+									<SelectValue placeholder="Selecciona una opción" />
+								</SelectTrigger>
+								<SelectContent>
+									{WOULD_RETURN_OPTIONS.map(value => (
+										<SelectItem key={value} value={value}>
+											{wouldReturnLabel[value]}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<PlaceImagesField
+							images={picked}
+							onChange={setPicked}
+							processing={processingImages}
+							onProcessingChange={setProcessingImages}
+							disabled={busy}
 						/>
 					</div>
 
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="phone">Teléfono</Label>
-						<Input
-							id="phone"
-							name="phone"
-							type="tel"
-							inputMode="numeric"
-							// Backstop for the rare case the change handler
-							// never runs (autofill on submit, no JS).
-							pattern="[0-9]*"
-							onChange={keepDigitsOnly}
-							// A number saved before this rule could still
-							// carry separators; drop them so an edit doesn't
-							// start out invalid.
-							defaultValue={
-								place?.phone && digitsOnly(place.phone)
-							}
-						/>
-					</div>
-
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="url">URL</Label>
-						<Input
-							id="url"
-							name="url"
-							type="url"
-							placeholder="https://…"
-							defaultValue={place?.url}
-						/>
-					</div>
-
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="wouldReturn">¿Volverías?</Label>
-						<Select
-							name="wouldReturn"
-							required
-							items={wouldReturnLabel}
-							defaultValue={place?.wouldReturn}
-						>
-							<SelectTrigger id="wouldReturn" className="w-full">
-								<SelectValue placeholder="Selecciona una opción" />
-							</SelectTrigger>
-							<SelectContent>
-								{WOULD_RETURN_OPTIONS.map(value => (
-									<SelectItem key={value} value={value}>
-										{wouldReturnLabel[value]}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<PlaceImagesField
-						images={picked}
-						onChange={setPicked}
-						processing={processingImages}
-						onProcessingChange={setProcessingImages}
-						disabled={busy}
-					/>
-
-					<DialogFooter>
+					<DialogFooter className="mx-0 mb-0 shrink-0">
 						<DialogClose
 							render={
 								<Button variant="outline" type="button">
