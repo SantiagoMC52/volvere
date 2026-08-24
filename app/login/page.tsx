@@ -1,7 +1,6 @@
 import { MapPinIcon } from 'lucide-react';
 
-import { GoogleIcon } from '@/components/icons/google';
-import { Button } from '@/components/ui/button';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { loginErrorMessage, sanitizeNextPath } from '@/lib/auth';
 import { firstParam } from '@/lib/utils';
 
@@ -49,15 +48,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 
 					<form action={signInWithGoogle} className="w-full">
 						<input type="hidden" name="next" value={next} />
-						<Button
-							type="submit"
-							variant="outline"
-							size="lg"
-							className="h-11 w-full gap-2.5 shadow-sm"
-						>
-							<GoogleIcon />
-							Continuar con Google
-						</Button>
+						<GoogleSignInButton />
 					</form>
 				</div>
 
