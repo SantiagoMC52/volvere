@@ -48,8 +48,8 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 			</Link>
 
 			<header className="flex flex-wrap items-start justify-between gap-4">
-				<div className="flex flex-col items-start gap-2">
-					<h1 className="text-3xl font-semibold tracking-tight">
+				<div className="flex min-w-0 flex-col items-start gap-2">
+					<h1 className="text-3xl font-semibold tracking-tight wrap-anywhere">
 						{place.name}
 					</h1>
 					<WouldReturnBadge
@@ -73,13 +73,17 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 				empty="Sin notas todavía."
 			>
 				{description && (
-					<p className="max-w-prose text-sm whitespace-pre-line">
+					<p className="max-w-prose text-sm whitespace-pre-line wrap-break-word">
 						{description}
 					</p>
 				)}
 			</PlaceField>
 
-			<div className="grid gap-4 sm:grid-cols-2">
+			{/* `grid-cols-1` is not redundant with the bare `grid`: without it
+			    the mobile column is an implicit `auto` track, which a long
+			    address widens past the screen. Spelled out it is
+			    `minmax(0, 1fr)`, same as `sm:grid-cols-2` gives the rest. */}
+			<div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
 				<PlaceField
 					label="Ubicación"
 					icon={MapPinIcon}

@@ -4,6 +4,7 @@ import { PencilIcon } from 'lucide-react';
 import {
 	startTransition,
 	useActionState,
+	useCallback,
 	useEffect,
 	useRef,
 	useState,
@@ -43,14 +44,24 @@ import {
 	SelectValue
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+	DESCRIPTION_MAX,
+	LOCATION_MAX,
+	NAME_MAX,
+	PHONE_MAX_DIGITS,
+	PHONE_MIN_DIGITS,
+	URL_MAX
+} from '@/lib/place-limits';
 import { digitsOnly } from '@/lib/phone';
 import { removeUploadedImages, uploadPlaceImages } from '@/lib/upload-images';
-import { wouldReturnLabel } from '@/lib/would-return';
+import { WOULD_RETURN_VALUES, wouldReturnLabel } from '@/lib/would-return';
 import type { Place, PlaceImage, WouldReturn } from '@/types/place';
 
-const WOULD_RETURN_OPTIONS: WouldReturn[] = ['yes', 'no', 'maybe'];
-
 const initialState: PlaceFormState = null;
+
+// A name rarely goes near 50 characters, so its counter stays out of the way
+// until the limit is close enough to matter.
+const NAME_COUNTER_FROM = NAME_MAX - 10;
 
 // Keeps the phone field to digits, whether they were typed, pasted or dropped
 // in. The input stays uncontrolled like the rest of the form, so the value is
@@ -73,6 +84,18 @@ function keepDigitsOnly(event: ChangeEvent<HTMLInputElement>) {
 	input.setSelectionRange(caret, caret);
 }
 
+// The form's values as one comparable string. Trimmed, like the Server Action
+// trims. `wouldReturn` is left out and compared from state instead: Base UI
+// writes it into its hidden input after this has already run, so reading it
+// here would always be one selection behind.
+function serializeFields(form: HTMLFormElement) {
+	return JSON.stringify(
+		[...new FormData(form)]
+			.filter(([name]) => name !== 'wouldReturn')
+			.map(([name, value]) => [name, String(value).trim()])
+	);
+}
+
 interface PlaceFormDialogProps {
 	// Place to edit; omit to render the "add" flow instead.
 	place?: Place;
@@ -90,15 +113,53 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 
 	// The text fields are uncontrolled and reset via the <form> `key` below,
 	// but the photo list is state, so it needs resetting on the same
-	// open/close edge.
+	// open/close edge. Same for the description counter: the `key` remounts
+	// the form, not this component, so its state would otherwise still be
+	// showing the length of whatever was typed last time.
 	const [picked, setPicked] = useState<PickedImage[]>(() =>
 		toPickedImages(images)
 	);
+	const [nameLength, setNameLength] = useState(() => place?.name.length ?? 0);
+	const [descriptionLength, setDescriptionLength] = useState(
+		() => place?.description.length ?? 0
+	);
+
+	// Editing something and changing nothing is not a save, so the button stays
+	// dead until the form differs from the values it opened with — compared as
+	// a snapshot rather than by controlling every field, which the `key` on the
+	// <form> below deliberately rules out.
+	const [fieldsDirty, setFieldsDirty] = useState(false);
+	const initialValues = useRef<string | null>(null);
+
+	// Taken from the mounted form rather than from `place`, so it starts from
+	// the values as rendered: the phone field strips the separators out of an
+	// older number, and that is not an edit the user made.
+	//
+	// `useCallback` is load-bearing here. React reinvokes a ref callback
+	// whenever its identity changes, so an inline arrow would retake the
+	// snapshot on the very re-render that marking the form dirty causes, and
+	// the button would never go back to disabled.
+	const captureInitialValues = useCallback((form: HTMLFormElement | null) => {
+		initialValues.current = form && serializeFields(form);
+	}, []);
+
+	// The one field that has to be controlled anyway. Base UI writes the
+	// select's value into a hidden input from React, which fires no `input`
+	// event for the form-level listener below to catch, so its value is held
+	// here and compared on its own.
+	const [wouldReturn, setWouldReturn] = useState<WouldReturn | null>(
+		() => place?.wouldReturn ?? null
+	);
+
 	const [lastOpen, setLastOpen] = useState(open);
 	if (open !== lastOpen) {
 		setLastOpen(open);
 		if (open) {
 			setPicked(toPickedImages(images));
+			setNameLength(place?.name.length ?? 0);
+			setDescriptionLength(place?.description.length ?? 0);
+			setFieldsDirty(false);
+			setWouldReturn(place?.wouldReturn ?? null);
 		}
 	}
 
@@ -206,6 +267,22 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 
 	const busy = processingImages || uploading || pending;
 
+	// The photos never travel in the form — they are uploaded separately and
+	// only their keys are appended on submit — so they compare on their own.
+	const imagesDirty =
+		picked.length !== images.length ||
+		picked.some(
+			(image, index) =>
+				image.kind === 'new' || image.path !== images[index]?.path
+		);
+
+	// Adding a place is always saveable; there is nothing to compare against.
+	const dirty =
+		!place ||
+		fieldsDirty ||
+		imagesDirty ||
+		wouldReturn !== place.wouldReturn;
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger
@@ -241,6 +318,13 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 				*/}
 				<form
 					key={String(open)}
+					ref={captureInitialValues}
+					onInput={event =>
+						setFieldsDirty(
+							serializeFields(event.currentTarget) !==
+								initialValues.current
+						)
+					}
 					onSubmit={event => void handleSubmit(event)}
 					className="flex min-h-0 flex-col"
 				>
@@ -259,21 +343,54 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 					    flex item floors at its intrinsic size. */}
 					<div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="name">Nombre</Label>
+							<div className="flex items-baseline justify-between gap-2">
+								<Label htmlFor="name">Nombre</Label>
+								{/*
+									Always in the DOM, only its content is
+									conditional: a live region that appears at
+									the same moment as its text goes unread.
+								*/}
+								<span
+									aria-live="polite"
+									className="text-muted-foreground text-xs"
+								>
+									{nameLength >= NAME_COUNTER_FROM &&
+										`${nameLength}/${NAME_MAX}`}
+								</span>
+							</div>
 							<Input
 								id="name"
 								name="name"
+								maxLength={NAME_MAX}
+								onChange={event =>
+									setNameLength(
+										event.currentTarget.value.length
+									)
+								}
 								defaultValue={place?.name}
 								required
 							/>
 						</div>
 
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="description">Descripción</Label>
+							{/* The only counter always on: this is the field long
+								enough that running out of room is a surprise. */}
+							<div className="flex items-baseline justify-between gap-2">
+								<Label htmlFor="description">Descripción</Label>
+								<span className="text-muted-foreground text-xs">
+									{descriptionLength}/{DESCRIPTION_MAX}
+								</span>
+							</div>
 							<Textarea
 								id="description"
 								name="description"
 								rows={3}
+								maxLength={DESCRIPTION_MAX}
+								onChange={event =>
+									setDescriptionLength(
+										event.currentTarget.value.length
+									)
+								}
 								defaultValue={place?.description}
 							/>
 						</div>
@@ -285,6 +402,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 							<Input
 								id="location"
 								name="location"
+								maxLength={LOCATION_MAX}
 								placeholder="Dirección o enlace de Google Maps"
 								defaultValue={place?.location}
 							/>
@@ -300,6 +418,11 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								// Backstop for the rare case the change handler
 								// never runs (autofill on submit, no JS).
 								pattern="[0-9]*"
+								// `minLength` only bites once something has been
+								// typed, so an empty field stays valid — the
+								// phone is optional.
+								minLength={PHONE_MIN_DIGITS}
+								maxLength={PHONE_MAX_DIGITS}
 								onChange={keepDigitsOnly}
 								// A number saved before this rule could still
 								// carry separators; drop them so an edit doesn't
@@ -316,6 +439,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								id="url"
 								name="url"
 								type="url"
+								maxLength={URL_MAX}
 								placeholder="https://…"
 								defaultValue={place?.url}
 							/>
@@ -327,7 +451,8 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								name="wouldReturn"
 								required
 								items={wouldReturnLabel}
-								defaultValue={place?.wouldReturn}
+								value={wouldReturn}
+								onValueChange={setWouldReturn}
 							>
 								<SelectTrigger
 									id="wouldReturn"
@@ -336,7 +461,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 									<SelectValue placeholder="Selecciona una opción" />
 								</SelectTrigger>
 								<SelectContent>
-									{WOULD_RETURN_OPTIONS.map(value => (
+									{WOULD_RETURN_VALUES.map(value => (
 										<SelectItem key={value} value={value}>
 											{wouldReturnLabel[value]}
 										</SelectItem>
@@ -362,7 +487,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								</Button>
 							}
 						/>
-						<Button type="submit" disabled={busy}>
+						<Button type="submit" disabled={busy || !dirty}>
 							{processingImages
 								? 'Procesando fotos…'
 								: uploading
