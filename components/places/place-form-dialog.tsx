@@ -4,6 +4,7 @@ import { PencilIcon } from 'lucide-react';
 import {
 	startTransition,
 	useActionState,
+	useCallback,
 	useEffect,
 	useRef,
 	useState,
@@ -54,7 +55,7 @@ import {
 import { digitsOnly } from '@/lib/phone';
 import { removeUploadedImages, uploadPlaceImages } from '@/lib/upload-images';
 import { WOULD_RETURN_VALUES, wouldReturnLabel } from '@/lib/would-return';
-import type { Place, PlaceImage } from '@/types/place';
+import type { Place, PlaceImage, WouldReturn } from '@/types/place';
 
 const initialState: PlaceFormState = null;
 
@@ -81,6 +82,18 @@ function keepDigitsOnly(event: ChangeEvent<HTMLInputElement>) {
 
 	input.value = digits;
 	input.setSelectionRange(caret, caret);
+}
+
+// The form's values as one comparable string. Trimmed, like the Server Action
+// trims. `wouldReturn` is left out and compared from state instead: Base UI
+// writes it into its hidden input after this has already run, so reading it
+// here would always be one selection behind.
+function serializeFields(form: HTMLFormElement) {
+	return JSON.stringify(
+		[...new FormData(form)]
+			.filter(([name]) => name !== 'wouldReturn')
+			.map(([name, value]) => [name, String(value).trim()])
+	);
 }
 
 interface PlaceFormDialogProps {
@@ -111,6 +124,33 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 		() => place?.description.length ?? 0
 	);
 
+	// Editing something and changing nothing is not a save, so the button stays
+	// dead until the form differs from the values it opened with — compared as
+	// a snapshot rather than by controlling every field, which the `key` on the
+	// <form> below deliberately rules out.
+	const [fieldsDirty, setFieldsDirty] = useState(false);
+	const initialValues = useRef<string | null>(null);
+
+	// Taken from the mounted form rather than from `place`, so it starts from
+	// the values as rendered: the phone field strips the separators out of an
+	// older number, and that is not an edit the user made.
+	//
+	// `useCallback` is load-bearing here. React reinvokes a ref callback
+	// whenever its identity changes, so an inline arrow would retake the
+	// snapshot on the very re-render that marking the form dirty causes, and
+	// the button would never go back to disabled.
+	const captureInitialValues = useCallback((form: HTMLFormElement | null) => {
+		initialValues.current = form && serializeFields(form);
+	}, []);
+
+	// The one field that has to be controlled anyway. Base UI writes the
+	// select's value into a hidden input from React, which fires no `input`
+	// event for the form-level listener below to catch, so its value is held
+	// here and compared on its own.
+	const [wouldReturn, setWouldReturn] = useState<WouldReturn | null>(
+		() => place?.wouldReturn ?? null
+	);
+
 	const [lastOpen, setLastOpen] = useState(open);
 	if (open !== lastOpen) {
 		setLastOpen(open);
@@ -118,6 +158,8 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 			setPicked(toPickedImages(images));
 			setNameLength(place?.name.length ?? 0);
 			setDescriptionLength(place?.description.length ?? 0);
+			setFieldsDirty(false);
+			setWouldReturn(place?.wouldReturn ?? null);
 		}
 	}
 
@@ -225,6 +267,22 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 
 	const busy = processingImages || uploading || pending;
 
+	// The photos never travel in the form — they are uploaded separately and
+	// only their keys are appended on submit — so they compare on their own.
+	const imagesDirty =
+		picked.length !== images.length ||
+		picked.some(
+			(image, index) =>
+				image.kind === 'new' || image.path !== images[index]?.path
+		);
+
+	// Adding a place is always saveable; there is nothing to compare against.
+	const dirty =
+		!place ||
+		fieldsDirty ||
+		imagesDirty ||
+		wouldReturn !== place.wouldReturn;
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger
@@ -260,6 +318,13 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 				*/}
 				<form
 					key={String(open)}
+					ref={captureInitialValues}
+					onInput={event =>
+						setFieldsDirty(
+							serializeFields(event.currentTarget) !==
+								initialValues.current
+						)
+					}
 					onSubmit={event => void handleSubmit(event)}
 					className="flex min-h-0 flex-col"
 				>
@@ -386,7 +451,8 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								name="wouldReturn"
 								required
 								items={wouldReturnLabel}
-								defaultValue={place?.wouldReturn}
+								value={wouldReturn}
+								onValueChange={setWouldReturn}
 							>
 								<SelectTrigger
 									id="wouldReturn"
@@ -421,7 +487,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								</Button>
 							}
 						/>
-						<Button type="submit" disabled={busy}>
+						<Button type="submit" disabled={busy || !dirty}>
 							{processingImages
 								? 'Procesando fotos…'
 								: uploading
