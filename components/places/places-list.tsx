@@ -329,7 +329,11 @@ export function PlacesList({
 					)}
 				</div>
 			) : (
-				<ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+				/* `grid-cols-1` is not redundant with the bare `grid`: it caps
+				   the mobile track at `minmax(0, 1fr)` so nothing inside a
+				   card can widen it. Same reason as in the detail page's
+				   field grid. */
+				<ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
 					{sorted.map((place, index) => (
 						<PlaceCard key={place.id} place={place} index={index} />
 					))}
