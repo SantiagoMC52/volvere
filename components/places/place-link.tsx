@@ -30,9 +30,15 @@ export function PlaceLink({
 			rel={external ? 'noreferrer' : undefined}
 			className="hover:bg-accent focus-visible:ring-ring/50 -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm transition-colors outline-none focus-visible:ring-3"
 		>
-			{/* `wrap-break-word` rather than `break-all`: an address has spaces
-			    to wrap at, and a long URL still gets broken when it has to be. */}
-			<span className="min-w-0 wrap-break-word">{children}</span>
+			{/* Not `break-all`: an address has spaces to wrap at, and a long
+			    URL still gets broken when it has to be. And `wrap-anywhere`
+			    rather than `wrap-break-word`, because only `anywhere` also
+			    shrinks the min-content width — with `break-word` a value
+			    without spaces still widens whatever content-sized box it lands
+			    in, however neatly it wraps once it gets there. That is what
+			    used to push this card, and the page with it, off the screen on
+			    mobile. */}
+			<span className="min-w-0 wrap-anywhere">{children}</span>
 			{external && (
 				<span className="sr-only">(se abre en una pestaña nueva)</span>
 			)}

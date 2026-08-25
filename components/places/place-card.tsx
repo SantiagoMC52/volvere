@@ -41,12 +41,14 @@ export function PlaceCard({ place, index }: PlaceCardProps) {
 						STATUS_ACCENT[place.wouldReturn]
 					)}
 				/>
-				<h2 className="pr-1 leading-snug font-semibold tracking-tight text-balance">
+				{/* `wrap-anywhere`, not `wrap-break-word`: the single mobile
+				    column is sized by its content. See place-link.tsx. */}
+				<h2 className="pr-1 leading-snug font-semibold tracking-tight text-balance wrap-anywhere">
 					{place.name}
 				</h2>
 
 				{description && (
-					<p className="text-muted-foreground line-clamp-2 text-sm">
+					<p className="text-muted-foreground line-clamp-2 text-sm wrap-anywhere">
 						{description}
 					</p>
 				)}
