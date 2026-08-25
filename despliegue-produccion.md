@@ -1,126 +1,155 @@
-# Despliegue a producción — Volveré
+# Desplegar Next.js + Supabase en Vercel
 
-Cómo llevar el proyecto de `Volveré-dev` (desarrollo) a `Volveré` (producción) + Vercel.
-
-Documento complementario a `supabase-mcp-setup.md`, que explica por qué existen dos proyectos de Supabase separados.
-
-## Los dos proyectos
-
-| Proyecto      | Uso                    |
-| ------------- | ---------------------- |
-| `Volveré-dev` | Desarrollo local y MCP |
-| `Volveré`     | Producción (Vercel)    |
-
-A lo largo del documento, `<ref-dev>` y `<ref-prod>` son los refs de cada proyecto. Los tienes en la URL de su dashboard, o listados con `pnpm supabase projects list`.
+Guía de cómo se lleva una aplicación Next.js con Supabase a producción, y cómo se le aplican cambios de esquema una vez está viva. Escrita a partir de [Volveré](./README.md), pero pensada para servir en cualquier proyecto con el mismo montaje.
 
 ## El modelo mental
 
-A producción tienen que viajar tres cosas, y cada una va por un camino distinto:
+A producción tienen que viajar tres cosas, y **cada una va por un camino distinto**:
 
-| Qué                                                      | Cómo viaja                               |
-| -------------------------------------------------------- | ---------------------------------------- |
-| Esquema: tablas, RLS, el bucket y sus políticas          | Migraciones SQL, con la CLI de Supabase  |
-| Config de Auth: proveedor de Google, URLs de redirección | **A mano** en el dashboard de producción |
-| Credenciales de la app                                   | Variables de entorno en Vercel           |
+| Qué                                                     | Cómo viaja                                         |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| Esquema: tablas, RLS, buckets y sus políticas           | Migraciones SQL, con la CLI de Supabase            |
+| Configuración de Auth: proveedores, URLs de redirección | **A mano**, en el panel del proyecto de producción |
+| Credenciales de la aplicación                           | Variables de entorno en Vercel                     |
 
-Lo segundo es lo que suele pillar por sorpresa: `Volveré` es un proyecto completamente separado de `Volveré-dev`, así que no sabe nada del cliente de Google OAuth ni de las URLs de redirección. Eso no está en ningún fichero SQL y `db push` no lo lleva.
+La segunda es la que pilla por sorpresa. Un proyecto de Supabase de producción es un proyecto **completamente separado** del de desarrollo: no sabe nada de tu cliente de Google OAuth ni de tus URLs de redirección. Eso no vive en ningún fichero SQL y `db push` no lo lleva.
 
-> **El MCP no interviene en nada de esto.** Sigue apuntando a `Volveré-dev` y así debe quedarse. La CLI es una herramienta distinta y es la que sí se enlaza con producción.
+## Dos proyectos, no dos ramas
+
+Merece la pena crear **dos proyectos de Supabase separados** en lugar de usar ramas de uno solo, sobre todo si trabajas con agentes o servidores MCP: así puedes darles acceso al de desarrollo sin que exista ningún camino hacia los datos reales.
+
+El coste es que hay dos de todo — dos configuraciones de Auth, dos juegos de credenciales — y que las migraciones hay que aplicarlas dos veces.
+
+A lo largo del documento, `<ref-dev>` y `<ref-prod>` son los identificadores de cada proyecto. Los tienes en la URL de su panel, o listados con:
+
+```bash
+pnpm supabase projects list
+```
+
+La columna `linked` indica cuál tiene enlazada la CLI ahora mismo.
 
 ## La CLI de Supabase
 
-Está instalada como dependencia de desarrollo, así la versión queda fijada en el repo y no depende de la máquina. Se invoca con `pnpm supabase <comando>`.
+Conviene instalarla como dependencia de desarrollo, no global: así la versión queda fijada en el repositorio y no depende de la máquina. Entonces cada comando es `pnpm supabase ...`.
 
-**`supabase init`** — crea `supabase/config.toml` (config del proyecto) y `supabase/.gitignore` (ignora `.temp`, el estado local de la CLI). Ojo: el bloque `[auth]` de `config.toml`, con su `site_url = "http://127.0.0.1:3000"`, configura **el stack local de Docker**, no los proyectos remotos. Las URLs de prod van en el dashboard.
+| Comando                              | Qué hace                                                  |
+| ------------------------------------ | --------------------------------------------------------- |
+| `supabase init`                      | Crea `supabase/config.toml` y `supabase/.gitignore`       |
+| `supabase login`                     | Autentica la CLI con tu cuenta. Una vez por máquina       |
+| `supabase link --project-ref <ref>`  | Enlaza la carpeta con un proyecto remoto                  |
+| `supabase db push`                   | Aplica las migraciones que le falten al proyecto enlazado |
+| `supabase db query --linked "<sql>"` | Ejecuta SQL contra el proyecto enlazado                   |
 
-**`supabase login`** — autentica la CLI con tu cuenta. Una vez por máquina.
+Dos detalles que ahorran un rato:
 
-**`supabase link --project-ref <ref>`** — enlaza esta carpeta con un proyecto remoto.
+- **`--project-ref` no sirve para apuntar a un proyecto que no esté enlazado.** Solo cualifica a `--linked`. Incluso una consulta de solo lectura contra el otro entorno obliga a reenlazar.
+- En una terminal no interactiva, `link --password ""` y `db push --yes` evitan que los comandos se queden esperando una respuesta.
 
-**`supabase db push`** — compara las versiones de `supabase/migrations/` con la tabla `supabase_migrations.schema_migrations` del proyecto enlazado y aplica las que faltan, en orden. Antes del real, siempre el ensayo:
+### El riesgo real: no saber a cuál apuntas
+
+El proyecto enlazado se guarda en `supabase/.temp/linked-project.json`, que está **ignorado por git**. El repositorio no deja constancia de a cuál apuntas, así que un `db push` distraído puede acabar en producción.
+
+De ahí que el procedimiento de abajo empiece y termine con lo mismo: comprobar dónde estás.
+
+## Aplicar una migración a producción
+
+`db push` compara las versiones de `supabase/migrations/` con la tabla `supabase_migrations.schema_migrations` del proyecto enlazado y aplica las que falten, en orden. Los **nombres de fichero son la fuente de verdad**: compara el timestamp del nombre contra lo registrado en el remoto. Si alguna vez aplicas una migración por otra vía, asegúrate de que el fichero local acabe con la versión que quedó registrada.
+
+**1. Comprobar dónde estás.**
+
+```bash
+pnpm supabase projects list
+```
+
+**2. Comprobar los datos que ya hay.** Este paso solo aplica si la migración añade restricciones, y es el que evita el susto: un `check` nuevo se valida contra **todas** las filas existentes, así que una sola que incumpla tumba el `ALTER TABLE`. Cuenta primero cuántas filas violarían cada regla nueva. Si algún contador no es cero, para y decide qué hacer con esas filas antes de seguir.
+
+**3. Enlazar producción.**
+
+```bash
+pnpm supabase link --project-ref <ref-prod>
+```
+
+Pide la contraseña de la base de datos; se puede dejar vacía, porque `db push` va por la API de gestión y no la necesita.
+
+**4. Ensayar.**
 
 ```bash
 pnpm supabase db push --dry-run
 ```
 
-### ⚠️ La carpeta está enlazada a producción
+Aquí confirmas que estás donde crees. Debería listar solo lo que esperas. Si aparecen migraciones antiguas, producción va por detrás de desarrollo: no es un problema en sí, se aplicarán en orden, pero mejor saberlo antes que a mitad.
 
-Cualquier `db push` desde aquí va contra `Volveré`. Para aplicar algo a dev hay que reenlazar primero:
+**5. Aplicar.**
+
+```bash
+pnpm supabase db push
+```
+
+Es transaccional: si algo choca con los datos existentes, se revierte entera y Postgres dice qué restricción falló y con qué fila.
+
+**6. Verificar.** Que la CLI diga "aplicada" no es lo mismo que comprobar que hizo lo que querías. Para restricciones, `pg_constraint` las lista con su definición. Si quieres confirmar que además **rechazan**, un `insert` inválido dentro de una transacción con `rollback` te lo demuestra sin dejar rastro.
+
+**7. Volver a desarrollo.** No te saltes este paso.
 
 ```bash
 pnpm supabase link --project-ref <ref-dev>
+pnpm supabase projects list
 ```
 
-El ref enlazado vive en `supabase/.temp/`, que está ignorado, así que **el repo no deja constancia de a cuál apuntas**. Compruébalo con `pnpm supabase projects list` (columna `linked`) antes de cualquier push.
+Si dejas el enlace en producción, el próximo `db push` que hagas sin mirar se va allí.
 
-### Los nombres de fichero son la fuente de verdad
+### Migraciones que estrechan
 
-`db push` compara **números de versión**: el timestamp del nombre de fichero contra la tabla del remoto. Las tres primeras migraciones se aplicaron con `apply_migration` del MCP, que registró su propio timestamp, distinto al del fichero; hubo que renombrar los ficheros para que coincidieran. Si vuelves a aplicar algo por MCP, comprueba que el fichero local acabe con la versión que quedó registrada.
+Una migración que **quita** margen — reduce un límite, restringe los tipos aceptados por un bucket — tiene una ventana peligrosa que las que amplían no tienen. Entre aplicarla y desplegar el código nuevo, producción sirve código viejo contra un esquema que ya no lo acepta.
+
+Ningún orden lo evita: aplicarla después deja la ventana contraria. La única vía sin caída es un par de migraciones ampliar-y-luego-estrechar alrededor del despliegue, que casi nunca compensa. Lo importante es **saber que la ventana existe** y elegirla a una hora tranquila.
 
 ## Google OAuth
 
 Un **único cliente OAuth** en Google Cloud sirve para los dos entornos: admite varias URIs de redirección autorizadas.
 
 ```
-https://<ref-dev>.supabase.co/auth/v1/callback    ← dev
-https://<ref-prod>.supabase.co/auth/v1/callback   ← prod
+https://<ref-dev>.supabase.co/auth/v1/callback
+https://<ref-prod>.supabase.co/auth/v1/callback
 ```
 
-Se **añaden**, no se sustituyen. Por eso el mismo client ID y el mismo secret se pegan en los dos proyectos de Supabase (Authentication → Sign In / Providers → Google).
+Se **añaden**, no se sustituyen. Por eso el mismo client ID y el mismo secret se pegan en los dos proyectos de Supabase, en _Authentication → Sign In / Providers → Google_.
 
-"Orígenes autorizados de JavaScript" se deja vacío: el navegador nunca llama a Google desde nuestro dominio, el flujo pasa siempre por `<ref>.supabase.co`.
+Puntos que se atascan:
 
-**Estado de publicación**: la pantalla de consentimiento tiene que estar en _In production_, no en _Testing_. En _Testing_ solo entran las cuentas añadidas como usuarios de prueba y las sesiones caducan a los 7 días. Como la app solo pide identidad básica (email y perfil, scopes no sensibles), publicar es inmediato y no pasa por la verificación de Google.
+- **Las credenciales apuntan a Supabase, no a tu dominio.** La redirección autorizada es `https://<ref>.supabase.co/auth/v1/callback`. "Orígenes autorizados de JavaScript" se deja vacío: el navegador nunca llama a Google desde tu dominio.
+- **La pantalla de consentimiento tiene que estar publicada** (_In production_), no en _Testing_. En pruebas solo entran las cuentas listadas como usuarios de prueba y las sesiones caducan a los siete días. Si solo pides identidad básica (`openid`, `email`, `profile`), publicar es inmediato y no pasa por la verificación de Google.
+- **Las URLs de redirección de Supabase necesitan comodín** si tu callback lleva parámetros: `https://tu-dominio/**`. Una entrada exacta rechaza una URL con `?next=...`.
+- **Para cerrar el registro** y que la aplicación quede en las cuentas que ya existen, el interruptor está en _Authentication → Sign In / Providers → "Allow new users to sign up"_. Es una puerta más fuerte que volver la pantalla de Google a modo prueba. Supabase devuelve entonces `error_code=signup_disabled`, que conviene tratar explícitamente en la ruta de callback.
+
+**El MCP de Supabase no tiene herramientas para la configuración de Auth**: proveedores, plantillas, límites y URLs de redirección son solo panel. Esos pasos siempre son a mano.
 
 ## Vercel
 
-Tres variables de entorno en el entorno **Production**:
+Las variables de entorno del proyecto, en el entorno **Production**:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL              = https://<ref-prod>.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  = <publishable key de prod>
-NEXT_PUBLIC_SITE_URL                  = https://tu-dominio.vercel.app
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  = <clave publicable de producción>
+NEXT_PUBLIC_SITE_URL                  = https://tu-dominio
 ```
 
-Son las tres que consume el código: `lib/supabase/server.ts`, `lib/supabase/client.ts`, `proxy.ts` y `app/login/actions.ts`.
+Comprueba también cuál es la **rama de producción** de Vercel: por defecto es `main`, y si trabajas sobre otra rama de integración no se desplegará sola.
 
-Además, la **rama de producción de Vercel es `main`**, no `devel`. `.env.local` se queda con las credenciales de dev y nunca se sube.
+### El huevo y la gallina del dominio
 
-Con el dominio ya conocido, falta cerrar el círculo en **dashboard de prod → Authentication → URL Configuration**:
+Hay una dependencia circular: no conoces el dominio hasta el primer despliegue, pero la configuración lo necesita. El orden que la deshace:
 
-- `Site URL` = `https://tu-dominio.vercel.app`
-- `Redirect URLs` = `https://tu-dominio.vercel.app/**`
+1. `db push` a producción, para que el esquema esté listo.
+2. Google Cloud: añadir la URI de callback de producción.
+3. Panel de Supabase de producción: activar el proveedor con el client ID y el secret.
+4. Primer despliegue en Vercel, que te da el dominio.
+5. Ya con el dominio: las variables de entorno en Vercel, y _Site URL_ y _Redirect URLs_ en Supabase.
+6. Redesplegar y probar el login de punta a punta.
 
-El patrón con `/**` es necesario porque el callback lleva un `?next=`: la URL completa tiene que encajar en la lista blanca. Está documentado en el comentario de `app/login/actions.ts`.
+## Reglas que no caducan
 
-## Orden de despliegue
-
-Hay un huevo-y-gallina: no conoces el dominio de Vercel hasta el primer despliegue, pero `NEXT_PUBLIC_SITE_URL` lo necesita.
-
-1. `db push` a producción → esquema listo
-2. Google Cloud: añadir la URI de callback de prod
-3. Dashboard de prod: activar el proveedor Google con el client ID y el secret
-4. Primer deploy en Vercel → te da el dominio
-5. Con el dominio: las tres variables en Vercel + Site URL y Redirect URLs en Supabase
-6. Redeploy y probar el login de punta a punta
-
-## Estado
-
-Hecho:
-
-- [x] CLI instalada, `init`, `login`, `link` a producción
-- [x] `db push`: las seis migraciones aplicadas y verificadas en `Volveré`
-- [x] URI de callback de prod añadida en Google Cloud Console
-- [x] Proveedor Google activado en el dashboard de prod
-
-Pendiente:
-
-- [ ] Comprobar que la pantalla de consentimiento está en _In production_
-- [ ] Proyecto en Vercel, rama de producción = `main`
-- [ ] Las tres variables de entorno en Vercel
-- [ ] Site URL y Redirect URLs en el dashboard de prod
-- [ ] Redeploy y probar: login, crear un sitio, subir una foto
-
-## Mantenimiento posterior
-
-Cada cambio de esquema sigue el mismo camino: se escribe como migración en `supabase/migrations/`, se prueba en dev, y se lleva a prod con `supabase db push`. Nunca se toca el esquema de producción a mano desde el dashboard — si se hace, los ficheros dejan de reflejar la realidad y el siguiente push falla o aplica algo incorrecto.
+- **El esquema de producción no se toca a mano** desde el panel. Si se hace, los ficheros dejan de reflejar la realidad y el siguiente `push` falla o aplica algo incorrecto.
+- **Cualquier release que lleve una migración la necesita aplicada antes** de que el código se despliegue, o la aplicación se encuentra un esquema que todavía no acepta lo que envía.
+- **Comprueba el proyecto enlazado antes de cada push**, y vuelve a desarrollo después.
+- **En producción puede no estar solo tu propio usuario.** En cuanto la aplicación tiene otra cuenta dentro, una migración destructiva deja de ser un experimento sobre tus datos.

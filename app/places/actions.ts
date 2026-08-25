@@ -9,17 +9,13 @@ import {
 	removePlaceImageObjects,
 	replacePlaceImages
 } from '@/lib/place-images';
+import { parsePlaceInput } from '@/lib/place-schema';
 import {
 	deletePlace as deletePlaceRow,
 	insertPlace,
-	updatePlace as updatePlaceRow,
-	type PlaceInput
+	updatePlace as updatePlaceRow
 } from '@/lib/places';
-import { isDigitsOnly } from '@/lib/phone';
 import { getUser } from '@/lib/supabase/server';
-import type { WouldReturn } from '@/types/place';
-
-const WOULD_RETURN_VALUES: WouldReturn[] = ['yes', 'no', 'maybe'];
 
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -27,44 +23,6 @@ const UUID_PATTERN =
 // Only whether it worked: the caller turns this into one of the generic
 // messages in lib/flash.ts. Anything more specific is logged, not returned.
 export type PlaceFormState = { ok: boolean } | null;
-
-function optionalString(value: FormDataEntryValue | null): string | null {
-	if (typeof value !== 'string') {
-		return null;
-	}
-
-	const trimmed = value.trim();
-	return trimmed === '' ? null : trimmed;
-}
-
-// Returns null when the form data is unusable. The fields it rejects are all
-// marked `required` in the form, so this is a backstop against a hand-made
-// POST rather than something a user hits by filling the dialog in.
-function parsePlaceInput(formData: FormData): PlaceInput | null {
-	const name = optionalString(formData.get('name'));
-	const phone = optionalString(formData.get('phone'));
-	const wouldReturn = formData.get('wouldReturn');
-
-	if (
-		!name ||
-		// The form only lets digits into this field, so anything else here
-		// bypassed it.
-		(phone !== null && !isDigitsOnly(phone)) ||
-		typeof wouldReturn !== 'string' ||
-		!WOULD_RETURN_VALUES.includes(wouldReturn as WouldReturn)
-	) {
-		return null;
-	}
-
-	return {
-		name,
-		description: optionalString(formData.get('description')),
-		location: optionalString(formData.get('location')),
-		phone,
-		url: optionalString(formData.get('url')),
-		wouldReturn: wouldReturn as WouldReturn
-	};
-}
 
 // The browser uploads the photos itself — the 1MB Server Action body limit
 // rules out routing them through here — and reports back the object keys it
@@ -111,9 +69,11 @@ export async function createPlace(
 		return { ok: false };
 	}
 
-	const input = parsePlaceInput(formData);
-	if (!input) {
-		console.error('[places] createPlace: invalid form data');
+	// Every rule the schema applies is also applied by the form, so a failure
+	// here means the request did not come from it.
+	const parsed = parsePlaceInput(formData);
+	if (!parsed.ok) {
+		console.error('[places] createPlace: invalid form data', parsed.errors);
 		return { ok: false };
 	}
 
@@ -124,7 +84,7 @@ export async function createPlace(
 	}
 
 	try {
-		await insertPlace(user.id, id, input);
+		await insertPlace(user.id, id, parsed.input);
 	} catch (err) {
 		console.error('[places] createPlace failed:', err);
 		return { ok: false };
@@ -157,9 +117,9 @@ export async function updatePlace(
 		return { ok: false };
 	}
 
-	const input = parsePlaceInput(formData);
-	if (!input) {
-		console.error('[places] updatePlace: invalid form data');
+	const parsed = parsePlaceInput(formData);
+	if (!parsed.ok) {
+		console.error('[places] updatePlace: invalid form data', parsed.errors);
 		return { ok: false };
 	}
 
@@ -170,7 +130,7 @@ export async function updatePlace(
 	}
 
 	try {
-		await updatePlaceRow(id, input);
+		await updatePlaceRow(id, parsed.input);
 		// The form sends the full list it is showing, so this also covers
 		// removals: those photos drop out of the table and out of the bucket.
 		await replacePlaceImages(id, imagePaths);

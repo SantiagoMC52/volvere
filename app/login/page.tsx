@@ -1,7 +1,5 @@
-import { MapPinIcon } from 'lucide-react';
-
-import { GoogleIcon } from '@/components/icons/google';
-import { Button } from '@/components/ui/button';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
+import { VolvereMark } from '@/components/icons/volvere';
 import { loginErrorMessage, sanitizeNextPath } from '@/lib/auth';
 import { firstParam } from '@/lib/utils';
 
@@ -22,12 +20,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 						className="bg-primary/20 absolute -top-6 left-1/2 size-40 -translate-x-1/2 rounded-full blur-3xl"
 					/>
 
-					<span
-						aria-hidden="true"
-						className="bg-primary/10 text-primary ring-primary/15 flex size-14 items-center justify-center rounded-full ring-4"
-					>
-						<MapPinIcon className="size-6" />
-					</span>
+					<VolvereMark className="ring-primary/15 size-14 rounded-[22%] ring-4" />
 
 					<div className="flex flex-col gap-2">
 						<h1 className="text-2xl font-semibold tracking-tight">
@@ -49,15 +42,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
 
 					<form action={signInWithGoogle} className="w-full">
 						<input type="hidden" name="next" value={next} />
-						<Button
-							type="submit"
-							variant="outline"
-							size="lg"
-							className="h-11 w-full gap-2.5 shadow-sm"
-						>
-							<GoogleIcon />
-							Continuar con Google
-						</Button>
+						<GoogleSignInButton />
 					</form>
 				</div>
 
