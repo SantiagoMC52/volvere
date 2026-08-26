@@ -1,6 +1,6 @@
 'use client';
 
-import { PencilIcon } from 'lucide-react';
+import { CirclePlus, CircleX, PencilIcon } from 'lucide-react';
 import {
 	startTransition,
 	useActionState,
@@ -9,8 +9,11 @@ import {
 	useRef,
 	useState,
 	type ChangeEvent,
+	type ReactNode,
+	type RefObject,
 	type SubmitEvent
 } from 'react';
+import { flushSync } from 'react-dom';
 
 import {
 	createPlace,
@@ -84,15 +87,69 @@ function keepDigitsOnly(event: ChangeEvent<HTMLInputElement>) {
 	input.setSelectionRange(caret, caret);
 }
 
+interface PhoneFieldProps {
+	name: string;
+	label: string;
+	defaultValue?: string;
+	action?: ReactNode;
+	inputRef?: RefObject<HTMLInputElement | null>;
+}
+
+// Both phones render through this, so the rules below only have to be got
+// right once.
+function PhoneField({
+	name,
+	label,
+	defaultValue,
+	action,
+	inputRef
+}: PhoneFieldProps) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<Label htmlFor={name}>{label}</Label>
+			<div className="flex items-center gap-2">
+				<Input
+					ref={inputRef}
+					id={name}
+					name={name}
+					type="tel"
+					inputMode="numeric"
+					// Backstop for the rare case the change handler never runs
+					// (autofill on submit, no JS).
+					pattern="[0-9]*"
+					// `minLength` only bites once something has been typed, so
+					// an empty field stays valid — the phone is optional.
+					minLength={PHONE_MIN_DIGITS}
+					maxLength={PHONE_MAX_DIGITS}
+					onChange={keepDigitsOnly}
+					// A number saved before this rule could still carry
+					// separators; drop them so an edit doesn't start out
+					// invalid.
+					defaultValue={defaultValue && digitsOnly(defaultValue)}
+				/>
+				{/* Held open whether or not there is a button in it — `size-8`
+				    matches the icon buttons — so the two phone rows line up.
+				    Without it the row that has no button stretches its input
+				    wider than the one above. */}
+				<div className="size-8 shrink-0">{action}</div>
+			</div>
+		</div>
+	);
+}
+
 // The form's values as one comparable string. Trimmed, like the Server Action
 // trims. `wouldReturn` is left out and compared from state instead: Base UI
 // writes it into its hidden input after this has already run, so reading it
 // here would always be one selection behind.
+//
+// Empty fields are dropped rather than compared as '': the second phone comes
+// and goes from the DOM, and FormData only reports what is in it, so an empty
+// field has to read the same as an absent one.
 function serializeFields(form: HTMLFormElement) {
 	return JSON.stringify(
 		[...new FormData(form)]
-			.filter(([name]) => name !== 'wouldReturn')
 			.map(([name, value]) => [name, String(value).trim()])
+			.filter(([name, value]) => name !== 'wouldReturn' && value !== '')
 	);
 }
 
@@ -124,12 +181,18 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 		() => place?.description.length ?? 0
 	);
 
+	const [showSecondPhone, setShowSecondPhone] = useState(() =>
+		Boolean(place?.phoneSecondary)
+	);
+	const secondPhoneRef = useRef<HTMLInputElement | null>(null);
+
 	// Editing something and changing nothing is not a save, so the button stays
 	// dead until the form differs from the values it opened with — compared as
 	// a snapshot rather than by controlling every field, which the `key` on the
 	// <form> below deliberately rules out.
 	const [fieldsDirty, setFieldsDirty] = useState(false);
 	const initialValues = useRef<string | null>(null);
+	const formRef = useRef<HTMLFormElement | null>(null);
 
 	// Taken from the mounted form rather than from `place`, so it starts from
 	// the values as rendered: the phone field strips the separators out of an
@@ -140,8 +203,37 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 	// snapshot on the very re-render that marking the form dirty causes, and
 	// the button would never go back to disabled.
 	const captureInitialValues = useCallback((form: HTMLFormElement | null) => {
+		formRef.current = form;
 		initialValues.current = form && serializeFields(form);
 	}, []);
+
+	// What the form's `onInput` does, on demand. Taking the second phone away
+	// changes what gets submitted without anything being typed, so that
+	// listener never fires and the save button would stay dead on a real edit.
+	function syncFieldsDirty() {
+		const form = formRef.current;
+		setFieldsDirty(
+			!!form && serializeFields(form) !== initialValues.current
+		);
+	}
+
+	function addSecondPhone() {
+		// Flushed rather than left to the next render: the focus below has to
+		// land on a field that already exists.
+		flushSync(() => setShowSecondPhone(true));
+		secondPhoneRef.current?.focus();
+	}
+
+	function removeSecondPhone() {
+		// Emptied before it goes: the input is about to leave the DOM, and
+		// clearing it is what makes the removal register below as an edit
+		// rather than as a field quietly vanishing.
+		if (secondPhoneRef.current) {
+			secondPhoneRef.current.value = '';
+		}
+		setShowSecondPhone(false);
+		syncFieldsDirty();
+	}
 
 	// The one field that has to be controlled anyway. Base UI writes the
 	// select's value into a hidden input from React, which fires no `input`
@@ -159,6 +251,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 			setNameLength(place?.name.length ?? 0);
 			setDescriptionLength(place?.description.length ?? 0);
 			setFieldsDirty(false);
+			setShowSecondPhone(Boolean(place?.phoneSecondary));
 			setWouldReturn(place?.wouldReturn ?? null);
 		}
 	}
@@ -408,30 +501,46 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 							/>
 						</div>
 
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="phone">Teléfono</Label>
-							<Input
-								id="phone"
-								name="phone"
-								type="tel"
-								inputMode="numeric"
-								// Backstop for the rare case the change handler
-								// never runs (autofill on submit, no JS).
-								pattern="[0-9]*"
-								// `minLength` only bites once something has been
-								// typed, so an empty field stays valid — the
-								// phone is optional.
-								minLength={PHONE_MIN_DIGITS}
-								maxLength={PHONE_MAX_DIGITS}
-								onChange={keepDigitsOnly}
-								// A number saved before this rule could still
-								// carry separators; drop them so an edit doesn't
-								// start out invalid.
-								defaultValue={
-									place?.phone && digitsOnly(place.phone)
+						<PhoneField
+							name="phone"
+							label="Teléfono"
+							defaultValue={place?.phone}
+							action={
+								!showSecondPhone && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										className="text-muted-foreground"
+										onClick={addSecondPhone}
+										aria-label="Añadir otro teléfono"
+									>
+										<CirclePlus />
+									</Button>
+								)
+							}
+						/>
+
+						{showSecondPhone && (
+							<PhoneField
+								name="phoneSecondary"
+								label="Otro teléfono"
+								defaultValue={place?.phoneSecondary}
+								inputRef={secondPhoneRef}
+								action={
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										className="text-muted-foreground"
+										onClick={removeSecondPhone}
+										aria-label="Quitar el segundo teléfono"
+									>
+										<CircleX />
+									</Button>
 								}
 							/>
-						</div>
+						)}
 
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="url">URL</Label>

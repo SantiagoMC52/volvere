@@ -11,12 +11,13 @@ interface PlaceRow {
 	description: string | null;
 	location: string | null;
 	phone: string | null;
+	phone_secondary: string | null;
 	url: string | null;
 	would_return: WouldReturn;
 }
 
 const PLACE_COLUMNS =
-	'id, name, description, location, phone, url, would_return';
+	'id, name, description, location, phone, phone_secondary, url, would_return';
 
 function toPlace(row: PlaceRow): Place {
 	return {
@@ -25,6 +26,7 @@ function toPlace(row: PlaceRow): Place {
 		description: row.description ?? '',
 		location: row.location ?? undefined,
 		phone: row.phone ?? undefined,
+		phoneSecondary: row.phone_secondary ?? undefined,
 		url: row.url ?? undefined,
 		wouldReturn: row.would_return
 	};
@@ -75,6 +77,7 @@ export interface PlaceInput {
 	description: string | null;
 	location: string | null;
 	phone: string | null;
+	phoneSecondary: string | null;
 	url: string | null;
 	wouldReturn: WouldReturn;
 }
@@ -85,6 +88,7 @@ function toRow(input: PlaceInput) {
 		description: input.description,
 		location: input.location,
 		phone: input.phone,
+		phone_secondary: input.phoneSecondary,
 		url: input.url,
 		would_return: input.wouldReturn
 	};

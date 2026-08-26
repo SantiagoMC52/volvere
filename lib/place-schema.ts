@@ -36,6 +36,12 @@ function optionalText(max: number) {
 		.pipe(z.string().max(max).nullable());
 }
 
+function phoneNumber() {
+	return optionalText(PHONE_MAX_DIGITS).pipe(
+		z.string().regex(PHONE_PATTERN).nullable()
+	);
+}
+
 const placeInputSchema = z.object({
 	name: z.string().trim().min(1).max(NAME_MAX),
 	description: optionalText(DESCRIPTION_MAX),
@@ -43,11 +49,8 @@ const placeInputSchema = z.object({
 	// pasted link — see lib/location.ts, which decides between the two when
 	// rendering.
 	location: optionalText(LOCATION_MAX),
-	// Rejected rather than stripped: the field only lets digits through as it
-	// is typed, so a separator reaching this far did not come from the form.
-	phone: optionalText(PHONE_MAX_DIGITS).pipe(
-		z.string().regex(PHONE_PATTERN).nullable()
-	),
+	phone: phoneNumber(),
+	phoneSecondary: phoneNumber(),
 	url: optionalText(URL_MAX).pipe(z.url().nullable()),
 	wouldReturn: z.enum(WOULD_RETURN_VALUES)
 });
@@ -65,6 +68,7 @@ export function parsePlaceInput(formData: FormData): PlaceInputResult {
 		description: formData.get('description'),
 		location: formData.get('location'),
 		phone: formData.get('phone'),
+		phoneSecondary: formData.get('phoneSecondary'),
 		url: formData.get('url'),
 		wouldReturn: formData.get('wouldReturn')
 	});

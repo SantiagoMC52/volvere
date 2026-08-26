@@ -15,6 +15,7 @@ export interface Place {
 	description: string;
 	location?: string;
 	phone?: string;
+	phoneSecondary?: string;
 	url?: string;
 	wouldReturn: WouldReturn;
 }
