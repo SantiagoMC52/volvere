@@ -38,6 +38,13 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 	// end up pointing at a map. See lib/location.ts.
 	const locationLink = place.location && toLocationLink(place.location);
 
+	const phones = (
+		[
+			['phone', place.phone],
+			['phoneSecondary', place.phoneSecondary]
+		] as const
+	).flatMap(([field, number]) => (number ? [{ field, number }] : []));
+
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-8">
 			<Link
@@ -83,7 +90,7 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 			    the mobile column is an implicit `auto` track, which a long
 			    address widens past the screen. Spelled out it is
 			    `minmax(0, 1fr)`, same as `sm:grid-cols-2` gives the rest. */}
-			<div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<PlaceField
 					label="Ubicación"
 					icon={MapPinIcon}
@@ -97,17 +104,22 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 				</PlaceField>
 
 				<PlaceField
-					label="Teléfono"
+					label={phones.length > 1 ? 'Teléfonos' : 'Teléfono'}
 					icon={PhoneIcon}
 					empty="Sin teléfono."
 				>
-					{place.phone && (
-						<PlaceLink
-							href={`tel:${place.phone.replace(/[^+\d]/g, '')}`}
-							icon={PhoneIcon}
-						>
-							{place.phone}
-						</PlaceLink>
+					{phones.length > 0 && (
+						<div className="flex flex-col">
+							{phones.map(({ field, number }) => (
+								<PlaceLink
+									key={field}
+									href={`tel:${number}`}
+									icon={PhoneIcon}
+								>
+									{number}
+								</PlaceLink>
+							))}
+						</div>
 					)}
 				</PlaceField>
 			</div>
