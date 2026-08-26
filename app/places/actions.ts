@@ -12,7 +12,9 @@ import {
 import { parsePlaceInput } from '@/lib/place-schema';
 import {
 	deletePlace as deletePlaceRow,
+	getPlaceById,
 	insertPlace,
+	setPlaceShareToken,
 	updatePlace as updatePlaceRow
 } from '@/lib/places';
 import { getUser } from '@/lib/supabase/server';
@@ -141,6 +143,63 @@ export async function updatePlace(
 
 	revalidatePath('/');
 	revalidatePath(`/places/${id}`);
+	return { ok: true };
+}
+
+export type ShareLinkState = { ok: true; token: string } | { ok: false };
+
+// Idempotent on purpose: reopening the share dialog on a place that is already
+// shared must hand back the same token. Minting a fresh one would quietly
+// break the link somebody was already given.
+//
+// getPlaceById runs under RLS, so a place that isn't the caller's own comes
+// back undefined and this refuses before writing anything.
+export async function ensureShareLink(id: string): Promise<ShareLinkState> {
+	const user = await getUser();
+	if (!user) {
+		console.error('[places] ensureShareLink: not signed in');
+		return { ok: false };
+	}
+
+	try {
+		const place = await getPlaceById(id);
+		if (!place) {
+			console.error('[places] ensureShareLink: place not found');
+			return { ok: false };
+		}
+
+		if (place.shareToken) {
+			return { ok: true, token: place.shareToken };
+		}
+
+		const token = crypto.randomUUID();
+		await setPlaceShareToken(id, token);
+		revalidatePath(`/places/${id}`);
+
+		return { ok: true, token };
+	} catch (err) {
+		console.error('[places] ensureShareLink failed:', err);
+		return { ok: false };
+	}
+}
+
+// Revoking is just clearing the column: every copy of the link dies at once,
+// and the page it pointed at answers like any other unknown token.
+export async function revokeShareLink(id: string): Promise<{ ok: boolean }> {
+	const user = await getUser();
+	if (!user) {
+		console.error('[places] revokeShareLink: not signed in');
+		return { ok: false };
+	}
+
+	try {
+		await setPlaceShareToken(id, null);
+		revalidatePath(`/places/${id}`);
+	} catch (err) {
+		console.error('[places] revokeShareLink failed:', err);
+		return { ok: false };
+	}
+
 	return { ok: true };
 }
 

@@ -13,9 +13,11 @@ import { PlaceField } from '@/components/places/place-field';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { PlaceGallery } from '@/components/places/place-gallery';
 import { PlaceLink } from '@/components/places/place-link';
+import { SharePlaceButton } from '@/components/places/share-place-button';
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
 import { formatDate } from '@/lib/dates';
 import { toLocationLink } from '@/lib/location';
+import { toPhoneList } from '@/lib/phone';
 import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById } from '@/lib/places';
 
@@ -39,12 +41,7 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 	// end up pointing at a map. See lib/location.ts.
 	const locationLink = place.location && toLocationLink(place.location);
 
-	const phones = (
-		[
-			['phone', place.phone],
-			['phoneSecondary', place.phoneSecondary]
-		] as const
-	).flatMap(([field, number]) => (number ? [{ field, number }] : []));
+	const phones = toPhoneList(place);
 
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-8">
@@ -73,6 +70,11 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 				</div>
 
 				<div className="flex gap-2">
+					<SharePlaceButton
+						placeId={place.id}
+						placeName={place.name}
+						shareToken={place.shareToken}
+					/>
 					<PlaceFormDialog place={place} images={images} />
 					<DeletePlaceButton
 						placeId={place.id}
