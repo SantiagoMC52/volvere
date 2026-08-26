@@ -132,7 +132,10 @@ Las variables de entorno del proyecto, en el entorno **Production**:
 NEXT_PUBLIC_SUPABASE_URL              = https://<ref-prod>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  = <clave publicable de producción>
 NEXT_PUBLIC_SITE_URL                  = https://tu-dominio
+SUPABASE_SECRET_KEY                   = <clave secreta de producción>
 ```
+
+La última es la de los enlaces para compartir: firma las fotos de un sitio compartido en el servidor, porque el visitante es anónimo y el bucket no le concede nada. Sin ella la página del enlace carga pero sale sin fotos. **No lleva prefijo `NEXT_PUBLIC_` y no debe llevarlo**: salta la RLS entera, así que nunca puede acabar en el navegador. Sácala del panel de producción (_Settings → API Keys_), no reutilices la de desarrollo.
 
 Comprueba también cuál es la **rama de producción** de Vercel: por defecto es `main`, y si trabajas sobre otra rama de integración no se desplegará sola.
 
