@@ -14,6 +14,7 @@ import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { PlaceGallery } from '@/components/places/place-gallery';
 import { PlaceLink } from '@/components/places/place-link';
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
+import { formatDate } from '@/lib/dates';
 import { toLocationLink } from '@/lib/location';
 import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById } from '@/lib/places';
@@ -63,6 +64,12 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 						value={place.wouldReturn}
 						className="px-3 py-1 text-sm"
 					/>
+					<p className="text-muted-foreground text-xs">
+						Guardado el{' '}
+						<time dateTime={place.createdAt}>
+							{formatDate(place.createdAt)}
+						</time>
+					</p>
 				</div>
 
 				<div className="flex gap-2">

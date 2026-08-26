@@ -18,4 +18,5 @@ export interface Place {
 	phoneSecondary?: string;
 	url?: string;
 	wouldReturn: WouldReturn;
+	createdAt: string;
 }

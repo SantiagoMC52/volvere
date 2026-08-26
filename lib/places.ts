@@ -14,10 +14,11 @@ interface PlaceRow {
 	phone_secondary: string | null;
 	url: string | null;
 	would_return: WouldReturn;
+	created_at: string;
 }
 
 const PLACE_COLUMNS =
-	'id, name, description, location, phone, phone_secondary, url, would_return';
+	'id, name, description, location, phone, phone_secondary, url, would_return, created_at';
 
 function toPlace(row: PlaceRow): Place {
 	return {
@@ -28,7 +29,8 @@ function toPlace(row: PlaceRow): Place {
 		phone: row.phone ?? undefined,
 		phoneSecondary: row.phone_secondary ?? undefined,
 		url: row.url ?? undefined,
-		wouldReturn: row.would_return
+		wouldReturn: row.would_return,
+		createdAt: row.created_at
 	};
 }
 
