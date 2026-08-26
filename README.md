@@ -8,7 +8,7 @@ Cada usuario entra con su cuenta de Google y ve únicamente sus sitios.
 
 **Listado.** Tarjetas con el nombre, las primeras líneas de las notas y el estado. Buscador insensible a mayúsculas y acentos (`cordoba` encuentra `Córdoba`), filtro por estado y tres órdenes: más recientes, más antiguos o primero los que sí. El estado de la vista viaja en la URL, así que se puede compartir o guardar en favoritos.
 
-**Detalle.** Notas, ubicación, teléfono, web y galería de fotos. La ubicación admite una dirección escrita a mano o un enlace pegado de Google Maps, y en los dos casos acaba llevando a un mapa. Caben dos teléfonos —fijo y móvil—, cada uno como enlace `tel:` para llamar desde el móvil.
+**Detalle.** Notas, ubicación, teléfono, web y galería de fotos. La ubicación admite una dirección escrita a mano o un enlace pegado de Google Maps, y en los dos casos acaba llevando a un mapa. Caben dos teléfonos —fijo y móvil—, cada uno como enlace `tel:` para llamar desde el móvil. Bajo el título, la fecha en que se guardó el sitio.
 
 **Alta, edición y borrado** en un diálogo, sin cambiar de página. El botón de guardar está inactivo mientras no haya un cambio real, así que abrir un sitio para mirarlo y cerrarlo no reescribe la fila.
 
