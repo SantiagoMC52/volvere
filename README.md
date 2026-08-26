@@ -10,6 +10,8 @@ Cada usuario entra con su cuenta de Google y ve únicamente sus sitios.
 
 **Detalle.** Notas, ubicación, teléfono, web y galería de fotos. La ubicación admite una dirección escrita a mano o un enlace pegado de Google Maps, y en los dos casos acaba llevando a un mapa. Caben dos teléfonos —fijo y móvil—, cada uno como enlace `tel:` para llamar desde el móvil. Bajo el título, la fecha en que se guardó el sitio.
 
+**Compartir.** Un sitio se puede pasar a alguien sin cuenta: el botón genera un enlace de solo lectura que enseña nombre, ubicación, teléfonos, web y fotos. Las notas, el veredicto y la fecha no viajan — son para uno mismo. El enlace se revoca cuando se quiera, y a partir de ahí deja de funcionar para todas las copias que se hayan repartido.
+
 **Alta, edición y borrado** en un diálogo, sin cambiar de página. El botón de guardar está inactivo mientras no haya un cambio real, así que abrir un sitio para mirarlo y cerrarlo no reescribe la fila.
 
 **Fotos.** Hasta cinco por sitio. Se comprimen en el navegador a JPEG de 1600 px antes de subirse — una foto de móvil de 4 MB se queda en unos 300 KB — y se suben directamente a Storage, sin pasar por el servidor. Los HEIC de iPhone se convierten en el propio navegador.
@@ -36,6 +38,8 @@ Tres capas independientes, y ninguna sustituye a otra:
 
 El middleware (`proxy.ts` en Next 16) refresca el token y redirige rutas privadas, pero es una comprobación **optimista**: lo que protege de verdad es el `getUser()` de cada página y las políticas RLS.
 
+**Los enlaces compartidos** son la única ruta pública (`/s/[token]`), y no se apoyan en RLS sino en dos funciones `security definer` que solo responden al token exacto que reciben. Una política de RLS para `anon` habría tenido que decir «cualquier sitio compartido», lo que permitiría listarlos todos y dejaría de ser un secreto. Qué campos salen lo decide el tipo de retorno de esas funciones, no la página. El bucket sigue sin conceder nada a `anon`: las fotos de un enlace se firman en el servidor con la clave secreta, ya comprobado el token, porque abrir el bucket a `anon` habría permitido además recorrerlo entero.
+
 ## Modelo de datos
 
 **`public.places`**
@@ -52,6 +56,7 @@ El middleware (`proxy.ts` en Next 16) refresca el token y redirige rutas privada
 | `url`             | text        | Opcional, ≤ 500                                                     |
 | `would_return`    | enum        | `yes` / `no` / `maybe`                                              |
 | `created_at`      | timestamptz |                                                                     |
+| `share_token`     | uuid        | Enlace público. Null si no está compartido. Índice único parcial    |
 
 **`public.place_images`** — índice de las fotos; los bytes viven en Storage.
 
@@ -74,15 +79,17 @@ app/
   layout.tsx              cabecera, fuentes, toasts
   page.tsx                listado
   places/[id]/page.tsx    detalle
-  places/actions.ts       Server Actions: crear, editar, borrar
+  places/actions.ts       Server Actions: crear, editar, borrar, compartir
+  s/[token]/              página pública de un enlace compartido
   login/                  página y acción de login
   auth/callback/route.ts  vuelta de Google, intercambio del código
 components/
   places/                 tarjetas, diálogo de alta/edición, galería
   ui/                     componentes shadcn/ui
 lib/
-  supabase/               clientes de navegador y servidor
+  supabase/               clientes de navegador, servidor y clave secreta
   places.ts               consultas a la tabla
+  shared-places.ts        lectura por token de un enlace compartido
   place-schema.ts         validación con Zod (solo servidor)
   place-limits.ts         longitudes máximas, compartidas con el formulario
   images.ts               compresión y límites de las fotos
@@ -103,7 +110,10 @@ En [http://localhost:3000](http://localhost:3000). Hace falta un `.env.local` co
 NEXT_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<clave publicable>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+SUPABASE_SECRET_KEY=<clave secreta>
 ```
+
+La última firma las fotos de los enlaces compartidos; sin ella esas páginas cargan pero salen sin fotos. Nunca lleva prefijo `NEXT_PUBLIC_`: salta la RLS entera y no puede acabar en el navegador.
 
 ### Scripts
 
