@@ -333,18 +333,6 @@ export function PlacesList({ places }: PlacesListProps) {
 							))}
 						</SelectContent>
 					</Select>
-
-					{filtersActive && (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={clearFilters}
-							className="hover:text-foreground min-h-9 sm:min-h-0"
-						>
-							<XIcon />
-							Limpiar filtros
-						</Button>
-					)}
 				</div>
 			</div>
 
@@ -353,6 +341,15 @@ export function PlacesList({ places }: PlacesListProps) {
 					<p className="text-muted-foreground max-w-sm text-sm text-balance">
 						Ningún sitio coincide con la búsqueda o el filtro.
 					</p>
+					{filtersActive && (
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={clearFilters}
+						>
+							Limpiar filtros
+						</Button>
+					)}
 				</div>
 			) : (
 				/* `grid-cols-1` is not redundant with the bare `grid`: it caps
