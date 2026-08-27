@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { IMAGE_BUCKET } from '@/lib/images';
 import { createClient } from '@/lib/supabase/server';
 import type { PlaceImage } from '@/types/place';
@@ -8,12 +10,18 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 // One request for the whole batch, not one per photo. Paths that can't be
 // signed are absent from the map rather than present and broken.
-async function signImagePaths(paths: string[]): Promise<Map<string, string>> {
+//
+// The client is an argument because the two callers sign as different people:
+// an owner looking at their own place uses their session, while a visitor on a
+// share link has none and is signed for by lib/supabase/admin.ts.
+export async function signImagePaths(
+	supabase: SupabaseClient,
+	paths: string[]
+): Promise<Map<string, string>> {
 	if (paths.length === 0) {
 		return new Map();
 	}
 
-	const supabase = await createClient();
 	const { data, error } = await supabase.storage
 		.from(IMAGE_BUCKET)
 		.createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
@@ -48,7 +56,10 @@ export async function getPlaceImages(placeId: string): Promise<PlaceImage[]> {
 	}
 
 	const rows = (data ?? []) as { id: string; storage_path: string }[];
-	const urls = await signImagePaths(rows.map(row => row.storage_path));
+	const urls = await signImagePaths(
+		supabase,
+		rows.map(row => row.storage_path)
+	);
 
 	return rows.flatMap(row => {
 		const url = urls.get(row.storage_path);

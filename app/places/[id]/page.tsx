@@ -13,12 +13,19 @@ import { PlaceField } from '@/components/places/place-field';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { PlaceGallery } from '@/components/places/place-gallery';
 import { PlaceLink } from '@/components/places/place-link';
+import { SharePlaceButton } from '@/components/places/share-place-button';
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
+import { formatDate } from '@/lib/dates';
 import { toLocationLink } from '@/lib/location';
+import { toPhoneList } from '@/lib/phone';
+import { toListHref } from '@/lib/place-filters';
 import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById } from '@/lib/places';
 
-export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
+export default async function PlacePage({
+	params,
+	searchParams
+}: PageProps<'/places/[id]'>) {
 	const { id } = await params;
 	const place = await getPlaceById(id);
 
@@ -38,10 +45,14 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 	// end up pointing at a map. See lib/location.ts.
 	const locationLink = place.location && toLocationLink(place.location);
 
+	const phones = toPhoneList(place);
+
+	const listHref = toListHref(await searchParams);
+
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-8">
 			<Link
-				href="/"
+				href={listHref}
 				className="text-muted-foreground hover:text-foreground w-fit text-sm transition-colors"
 			>
 				← Volver al listado
@@ -56,9 +67,20 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 						value={place.wouldReturn}
 						className="px-3 py-1 text-sm"
 					/>
+					<p className="text-muted-foreground text-xs">
+						Guardado el{' '}
+						<time dateTime={place.createdAt}>
+							{formatDate(place.createdAt)}
+						</time>
+					</p>
 				</div>
 
 				<div className="flex gap-2">
+					<SharePlaceButton
+						placeId={place.id}
+						placeName={place.name}
+						shareToken={place.shareToken}
+					/>
 					<PlaceFormDialog place={place} images={images} />
 					<DeletePlaceButton
 						placeId={place.id}
@@ -83,7 +105,7 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 			    the mobile column is an implicit `auto` track, which a long
 			    address widens past the screen. Spelled out it is
 			    `minmax(0, 1fr)`, same as `sm:grid-cols-2` gives the rest. */}
-			<div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<PlaceField
 					label="Ubicación"
 					icon={MapPinIcon}
@@ -97,17 +119,22 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 				</PlaceField>
 
 				<PlaceField
-					label="Teléfono"
+					label={phones.length > 1 ? 'Teléfonos' : 'Teléfono'}
 					icon={PhoneIcon}
 					empty="Sin teléfono."
 				>
-					{place.phone && (
-						<PlaceLink
-							href={`tel:${place.phone.replace(/[^+\d]/g, '')}`}
-							icon={PhoneIcon}
-						>
-							{place.phone}
-						</PlaceLink>
+					{phones.length > 0 && (
+						<div className="flex flex-col">
+							{phones.map(({ field, number }) => (
+								<PlaceLink
+									key={field}
+									href={`tel:${number}`}
+									icon={PhoneIcon}
+								>
+									{number}
+								</PlaceLink>
+							))}
+						</div>
 					)}
 				</PlaceField>
 			</div>

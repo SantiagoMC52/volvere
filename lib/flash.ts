@@ -44,6 +44,18 @@ export const FLASH_MESSAGES = {
 		type: 'error',
 		description: 'Error al eliminar el sitio.'
 	},
+	'share-link-copied': {
+		type: 'success',
+		description: 'Enlace copiado.'
+	},
+	'share-link-revoked': {
+		type: 'success',
+		description: 'El enlace ha dejado de funcionar.'
+	},
+	'share-link-error': {
+		type: 'error',
+		description: 'Error con el enlace para compartir.'
+	},
 	'image-upload-error': {
 		type: 'error',
 		description: 'Error al subir las fotos.'

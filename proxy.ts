@@ -8,7 +8,9 @@ import { createServerClient } from '@supabase/ssr';
 
 // /auth/callback must be public: there is no session yet when Google sends the
 // user back, and bouncing it to /login would mean the code is never exchanged.
-const PUBLIC_PATHS = ['/login', '/auth/callback'];
+// /s is the share links: whoever opens one has no account, and sending them to
+// a login would defeat the entire point of the link.
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/s'];
 
 function isPublicPath(pathname: string) {
 	return PUBLIC_PATHS.some(
