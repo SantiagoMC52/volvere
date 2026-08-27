@@ -12,12 +12,7 @@ export default async function Home({ searchParams }: PageProps<'/'>) {
 		<div className="flex flex-1 flex-col gap-6 px-4 pb-8 sm:px-8">
 			<FlashToast flash={firstParam(params[FLASH_PARAM])} />
 
-			<PlacesList
-				places={places}
-				initialQuery={firstParam(params.q)}
-				initialStatus={firstParam(params.status)}
-				initialSort={firstParam(params.sort)}
-			/>
+			<PlacesList places={places} />
 		</div>
 	);
 }

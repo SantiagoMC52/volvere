@@ -18,10 +18,14 @@ import { WouldReturnBadge } from '@/components/places/would-return-badge';
 import { formatDate } from '@/lib/dates';
 import { toLocationLink } from '@/lib/location';
 import { toPhoneList } from '@/lib/phone';
+import { toListHref } from '@/lib/place-filters';
 import { getPlaceImages } from '@/lib/place-images';
 import { getPlaceById } from '@/lib/places';
 
-export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
+export default async function PlacePage({
+	params,
+	searchParams
+}: PageProps<'/places/[id]'>) {
 	const { id } = await params;
 	const place = await getPlaceById(id);
 
@@ -43,10 +47,12 @@ export default async function PlacePage({ params }: PageProps<'/places/[id]'>) {
 
 	const phones = toPhoneList(place);
 
+	const listHref = toListHref(await searchParams);
+
 	return (
 		<div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-12 sm:px-8">
 			<Link
-				href="/"
+				href={listHref}
 				className="text-muted-foreground hover:text-foreground w-fit text-sm transition-colors"
 			>
 				← Volver al listado

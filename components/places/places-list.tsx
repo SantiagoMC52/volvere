@@ -1,6 +1,12 @@
 'use client';
 
-import { SearchIcon, XIcon } from 'lucide-react';
+import {
+	ArrowUpDownIcon,
+	ListFilterIcon,
+	SearchIcon,
+	XIcon
+} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { PlaceCard } from '@/components/places/place-card';
@@ -15,6 +21,12 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '@/components/ui/select';
+import {
+	FILTER_PARAMS,
+	QUERY_PARAM,
+	SORT_PARAM,
+	STATUS_PARAM
+} from '@/lib/place-filters';
 import { cn } from '@/lib/utils';
 import { wouldReturnLabel } from '@/lib/would-return';
 import type { Place, WouldReturn } from '@/types/place';
@@ -37,15 +49,11 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 const STATUS_RANK: Record<WouldReturn, number> = { yes: 0, maybe: 1, no: 2 };
 
-const QUERY_PARAM = 'q';
-const STATUS_PARAM = 'status';
-const SORT_PARAM = 'sort';
-
 // A query string is user-editable, so anything read from it has to be checked
 // against the options that actually exist before it reaches state.
 function optionOrDefault<T extends string>(
 	options: { value: T }[],
-	raw: string | undefined,
+	raw: string | null,
 	fallback: T
 ): T {
 	return options.some(option => option.value === raw) ? (raw as T) : fallback;
@@ -80,26 +88,19 @@ function countLabel(filtered: number, total: number): string {
 
 interface PlacesListProps {
 	places: Place[];
-	// Read by the page's Server Component and passed down, rather than read
-	// here with useSearchParams — that would force this subtree out of
-	// prerendering and require a Suspense boundary, same as FlashToast.
-	initialQuery: string | undefined;
-	initialStatus: string | undefined;
-	initialSort: string | undefined;
 }
 
-export function PlacesList({
-	places,
-	initialQuery,
-	initialStatus,
-	initialSort
-}: PlacesListProps) {
-	const [query, setQuery] = useState(initialQuery ?? '');
+export function PlacesList({ places }: PlacesListProps) {
+	const searchParams = useSearchParams();
+
+	const [query, setQuery] = useState(
+		() => searchParams.get(QUERY_PARAM) ?? ''
+	);
 	const [status, setStatus] = useState(() =>
-		optionOrDefault(STATUS_FILTERS, initialStatus, 'all')
+		optionOrDefault(STATUS_FILTERS, searchParams.get(STATUS_PARAM), 'all')
 	);
 	const [sort, setSort] = useState(() =>
-		optionOrDefault(SORT_OPTIONS, initialSort, 'recent')
+		optionOrDefault(SORT_OPTIONS, searchParams.get(SORT_PARAM), 'recent')
 	);
 
 	// Only drives the toolbar's separating border: a permanent one would draw a
@@ -127,6 +128,24 @@ export function PlacesList({
 		};
 	}, []);
 
+	const filterSearch = useMemo(() => {
+		const params = new URLSearchParams();
+
+		if (query) {
+			params.set(QUERY_PARAM, query);
+		}
+		if (status !== 'all') {
+			params.set(STATUS_PARAM, status);
+		}
+		if (sort !== 'recent') {
+			params.set(SORT_PARAM, sort);
+		}
+
+		return params.toString();
+	}, [query, status, sort]);
+
+	const [linkSearch, setLinkSearch] = useState(filterSearch);
+
 	// The URL only bookmarks the current view, it isn't the source of truth for
 	// it — `history.replaceState` keeps it in sync without going through
 	// next/navigation's router, which would re-fetch the Server Component for
@@ -134,18 +153,12 @@ export function PlacesList({
 	useEffect(() => {
 		const timeout = setTimeout(() => {
 			const params = new URLSearchParams(window.location.search);
-			const state: [string, string, string][] = [
-				[QUERY_PARAM, query, ''],
-				[STATUS_PARAM, status, 'all'],
-				[SORT_PARAM, sort, 'recent']
-			];
 
-			for (const [key, value, fallback] of state) {
-				if (value === fallback) {
-					params.delete(key);
-				} else {
-					params.set(key, value);
-				}
+			for (const key of FILTER_PARAMS) {
+				params.delete(key);
+			}
+			for (const [key, value] of new URLSearchParams(filterSearch)) {
+				params.set(key, value);
 			}
 
 			const search = params.toString();
@@ -156,10 +169,12 @@ export function PlacesList({
 					? `${window.location.pathname}?${search}`
 					: window.location.pathname
 			);
+
+			setLinkSearch(filterSearch);
 		}, 300);
 
 		return () => clearTimeout(timeout);
-	}, [query, status, sort]);
+	}, [filterSearch]);
 
 	const filtered = useMemo(
 		() =>
@@ -273,6 +288,10 @@ export function PlacesList({
 							aria-label="Filtrar por estado"
 							className="min-h-9 sm:min-h-0"
 						>
+							<ListFilterIcon
+								className="text-muted-foreground size-3.5"
+								aria-hidden="true"
+							/>
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -297,6 +316,10 @@ export function PlacesList({
 							aria-label="Ordenar sitios"
 							className="min-h-9 sm:min-h-0"
 						>
+							<ArrowUpDownIcon
+								className="text-muted-foreground size-3.5"
+								aria-hidden="true"
+							/>
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -310,6 +333,18 @@ export function PlacesList({
 							))}
 						</SelectContent>
 					</Select>
+
+					{filtersActive && (
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={clearFilters}
+							className="hover:text-foreground min-h-9 sm:min-h-0"
+						>
+							<XIcon />
+							Limpiar filtros
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -318,15 +353,6 @@ export function PlacesList({
 					<p className="text-muted-foreground max-w-sm text-sm text-balance">
 						Ningún sitio coincide con la búsqueda o el filtro.
 					</p>
-					{filtersActive && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={clearFilters}
-						>
-							Quitar filtros
-						</Button>
-					)}
 				</div>
 			) : (
 				/* `grid-cols-1` is not redundant with the bare `grid`: it caps
@@ -335,7 +361,12 @@ export function PlacesList({
 				   field grid. */
 				<ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
 					{sorted.map((place, index) => (
-						<PlaceCard key={place.id} place={place} index={index} />
+						<PlaceCard
+							key={place.id}
+							place={place}
+							index={index}
+							listSearch={linkSearch}
+						/>
 					))}
 				</ul>
 			)}
