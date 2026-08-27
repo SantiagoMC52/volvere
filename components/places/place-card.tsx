@@ -18,9 +18,10 @@ interface PlaceCardProps {
 	// Position in the list currently on screen, used only for the first-paint
 	// stagger below — not a stable identity, so don't use it as a key.
 	index: number;
+	listSearch: string;
 }
 
-export function PlaceCard({ place, index }: PlaceCardProps) {
+export function PlaceCard({ place, index, listSearch }: PlaceCardProps) {
 	const description = place.description.trim();
 
 	return (
@@ -31,7 +32,11 @@ export function PlaceCard({ place, index }: PlaceCardProps) {
 			style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
 		>
 			<Link
-				href={`/places/${place.id}`}
+				href={
+					listSearch
+						? `/places/${place.id}?${listSearch}`
+						: `/places/${place.id}`
+				}
 				className="group border-border/70 bg-card ring-black/3 dark:ring-white/5 relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl border p-5 shadow-sm ring-1 transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
 			>
 				<span
