@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
@@ -20,7 +20,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: 'Volveré',
-	description: 'Restaurantes y sitios para recordar si volver o no.'
+	description: 'Restaurantes y sitios para recordar si volver o no.',
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: 'default',
+		title: 'Volveré'
+	}
+};
+
+export const viewport: Viewport = {
+	themeColor: '#0b6cdd',
+	width: 'device-width',
+	initialScale: 1,
+	maximumScale: 1
 };
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
