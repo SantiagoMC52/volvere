@@ -87,6 +87,8 @@ export default async function PlacePage({
 						placeId={place.id}
 						placeName={place.name}
 						shareToken={place.shareToken}
+						hasNotes={description !== ''}
+						shareDescription={place.shareDescription}
 					/>
 					<PlaceFormDialog place={place} images={images} />
 					<DeletePlaceButton

@@ -10,7 +10,7 @@ Cada usuario entra con su cuenta de Google y ve únicamente sus sitios.
 
 **Detalle.** Notas, ubicación, teléfono, web y galería de fotos. La ubicación admite una dirección escrita a mano o un enlace pegado de Google Maps, y en los dos casos acaba llevando a un mapa. Caben dos teléfonos —fijo y móvil—, cada uno como enlace `tel:` para llamar desde el móvil. Bajo el título, la fecha en que se guardó el sitio.
 
-**Compartir.** Un sitio se puede pasar a alguien sin cuenta: el botón genera un enlace de solo lectura que enseña nombre, ubicación, teléfonos, web y fotos. Las notas, el veredicto y la fecha no viajan — son para uno mismo. El enlace se revoca cuando se quiera, y a partir de ahí deja de funcionar para todas las copias que se hayan repartido.
+**Compartir.** Un sitio se puede pasar a alguien sin cuenta: el botón genera un enlace de solo lectura que enseña nombre, categoría, ubicación, teléfonos, web y fotos. Las notas no viajan salvo que se active un interruptor en el propio diálogo, sitio por sitio; el veredicto y la fecha no viajan nunca — son para uno mismo. El enlace se revoca cuando se quiera, y a partir de ahí deja de funcionar para todas las copias que se hayan repartido.
 
 **Alta, edición y borrado** en un diálogo, sin cambiar de página. El botón de guardar está inactivo mientras no haya un cambio real, así que abrir un sitio para mirarlo y cerrarlo no reescribe la fila.
 
@@ -44,20 +44,21 @@ El middleware (`proxy.ts` en Next 16) refresca el token y redirige rutas privada
 
 **`public.places`**
 
-| Campo             | Tipo        | Notas                                                               |
-| ----------------- | ----------- | ------------------------------------------------------------------- |
-| `id`              | uuid        | PK                                                                  |
-| `user_id`         | uuid        | FK a `auth.users`, en cascada. Indexado: sostiene las políticas RLS |
-| `name`            | text        | Obligatorio, 1–50 caracteres                                        |
-| `description`     | text        | Opcional, ≤ 400                                                     |
-| `location`        | text        | Opcional, ≤ 500. Texto libre: dirección o enlace                    |
-| `phone`           | text        | Opcional, 6–15 dígitos sin prefijo ni separadores                   |
-| `phone_secondary` | text        | Opcional, mismo formato que `phone`. Independiente de él            |
-| `url`             | text        | Opcional, ≤ 500                                                     |
-| `would_return`    | enum        | `yes` / `no` / `maybe`                                              |
-| `category`        | enum        | `food` / `lodging` / `parking` / `leisure` / `shopping` / `other`   |
-| `created_at`      | timestamptz |                                                                     |
-| `share_token`     | uuid        | Enlace público. Null si no está compartido. Índice único parcial    |
+| Campo               | Tipo        | Notas                                                               |
+| ------------------- | ----------- | ------------------------------------------------------------------- |
+| `id`                | uuid        | PK                                                                  |
+| `user_id`           | uuid        | FK a `auth.users`, en cascada. Indexado: sostiene las políticas RLS |
+| `name`              | text        | Obligatorio, 1–50 caracteres                                        |
+| `description`       | text        | Opcional, ≤ 400                                                     |
+| `location`          | text        | Opcional, ≤ 500. Texto libre: dirección o enlace                    |
+| `phone`             | text        | Opcional, 6–15 dígitos sin prefijo ni separadores                   |
+| `phone_secondary`   | text        | Opcional, mismo formato que `phone`. Independiente de él            |
+| `url`               | text        | Opcional, ≤ 500                                                     |
+| `would_return`      | enum        | `yes` / `no` / `maybe`                                              |
+| `category`          | enum        | `food` / `lodging` / `parking` / `leisure` / `shopping` / `other`   |
+| `created_at`        | timestamptz |                                                                     |
+| `share_token`       | uuid        | Enlace público. Null si no está compartido. Índice único parcial    |
+| `share_description` | boolean     | Si el enlace público incluye las notas. Se apaga al revocar         |
 
 **`public.place_images`** — índice de las fotos; los bytes viven en Storage.
 
