@@ -14,6 +14,7 @@ import {
 	PHONE_MIN_DIGITS,
 	URL_MAX
 } from '@/lib/place-limits';
+import { PLACE_CATEGORY_VALUES } from '@/lib/place-category';
 import type { PlaceInput } from '@/lib/places';
 import { WOULD_RETURN_VALUES } from '@/lib/would-return';
 
@@ -52,7 +53,8 @@ const placeInputSchema = z.object({
 	phone: phoneNumber(),
 	phoneSecondary: phoneNumber(),
 	url: optionalText(URL_MAX).pipe(z.url().nullable()),
-	wouldReturn: z.enum(WOULD_RETURN_VALUES)
+	wouldReturn: z.enum(WOULD_RETURN_VALUES),
+	category: z.enum(PLACE_CATEGORY_VALUES)
 });
 
 export type PlaceInputResult =
@@ -70,7 +72,8 @@ export function parsePlaceInput(formData: FormData): PlaceInputResult {
 		phone: formData.get('phone'),
 		phoneSecondary: formData.get('phoneSecondary'),
 		url: formData.get('url'),
-		wouldReturn: formData.get('wouldReturn')
+		wouldReturn: formData.get('wouldReturn'),
+		category: formData.get('category')
 	});
 
 	return result.success

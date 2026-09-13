@@ -6,7 +6,7 @@ Cada usuario entra con su cuenta de Google y ve únicamente sus sitios.
 
 ## Qué hace
 
-**Listado.** Tarjetas con el nombre, las primeras líneas de las notas y el estado. Buscador insensible a mayúsculas y acentos (`cordoba` encuentra `Córdoba`), filtro por estado y tres órdenes: más recientes, más antiguos o primero los que sí. El estado de la vista viaja en la URL, así que se puede compartir o guardar en favoritos.
+**Listado.** Tarjetas con el nombre, las primeras líneas de las notas, el estado y la categoría. Buscador insensible a mayúsculas y acentos (`cordoba` encuentra `Córdoba`), filtros por estado y por categoría —comida, alojamiento, parking, ocio, compras u otros— y tres órdenes: más recientes, más antiguos o primero los que sí. El estado de la vista viaja en la URL, así que se puede compartir o guardar en favoritos.
 
 **Detalle.** Notas, ubicación, teléfono, web y galería de fotos. La ubicación admite una dirección escrita a mano o un enlace pegado de Google Maps, y en los dos casos acaba llevando a un mapa. Caben dos teléfonos —fijo y móvil—, cada uno como enlace `tel:` para llamar desde el móvil. Bajo el título, la fecha en que se guardó el sitio.
 
@@ -55,6 +55,7 @@ El middleware (`proxy.ts` en Next 16) refresca el token y redirige rutas privada
 | `phone_secondary` | text        | Opcional, mismo formato que `phone`. Independiente de él            |
 | `url`             | text        | Opcional, ≤ 500                                                     |
 | `would_return`    | enum        | `yes` / `no` / `maybe`                                              |
+| `category`        | enum        | `food` / `lodging` / `parking` / `leisure` / `shopping` / `other`   |
 | `created_at`      | timestamptz |                                                                     |
 | `share_token`     | uuid        | Enlace público. Null si no está compartido. Índice único parcial    |
 

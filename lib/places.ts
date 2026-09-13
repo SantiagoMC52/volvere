@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { Place, WouldReturn } from '@/types/place';
+import type { Place, PlaceCategory, WouldReturn } from '@/types/place';
 
 export { wouldReturnLabel } from '@/lib/would-return';
 
@@ -14,13 +14,14 @@ interface PlaceRow {
 	phone_secondary: string | null;
 	url: string | null;
 	would_return: WouldReturn;
+	category: PlaceCategory;
 	created_at: string;
 	// Absent from the listing query — see below.
 	share_token?: string | null;
 }
 
 const LIST_COLUMNS =
-	'id, name, description, location, phone, phone_secondary, url, would_return, created_at';
+	'id, name, description, location, phone, phone_secondary, url, would_return, category, created_at';
 
 // The token is the credential for a place's public link, and the listing hands
 // its rows to a client component: selecting it there would ship every token
@@ -38,6 +39,7 @@ function toPlace(row: PlaceRow): Place {
 		phoneSecondary: row.phone_secondary ?? undefined,
 		url: row.url ?? undefined,
 		wouldReturn: row.would_return,
+		category: row.category,
 		createdAt: row.created_at,
 		shareToken: row.share_token ?? undefined
 	};
@@ -91,6 +93,7 @@ export interface PlaceInput {
 	phoneSecondary: string | null;
 	url: string | null;
 	wouldReturn: WouldReturn;
+	category: PlaceCategory;
 }
 
 function toRow(input: PlaceInput) {
@@ -101,7 +104,8 @@ function toRow(input: PlaceInput) {
 		phone: input.phone,
 		phone_secondary: input.phoneSecondary,
 		url: input.url,
-		would_return: input.wouldReturn
+		would_return: input.wouldReturn,
+		category: input.category
 	};
 }
 

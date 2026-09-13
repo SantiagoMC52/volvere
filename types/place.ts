@@ -1,5 +1,9 @@
 export type WouldReturn = 'yes' | 'no' | 'maybe';
 
+// Mirrors public.place_category. The list lives in lib/place-category.ts.
+export type PlaceCategory =
+	'food' | 'lodging' | 'parking' | 'leisure' | 'shopping' | 'other';
+
 export interface PlaceImage {
 	id: string;
 	// Object key inside the place-images bucket. Kept next to the URL because
@@ -18,6 +22,7 @@ export interface Place {
 	phoneSecondary?: string;
 	url?: string;
 	wouldReturn: WouldReturn;
+	category: PlaceCategory;
 	createdAt: string;
 	// Present only while the place has a public link. It is the credential for
 	// that link, so it never leaves the owner's own pages.

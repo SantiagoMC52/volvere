@@ -4,6 +4,7 @@ import {
 	ArrowUpDownIcon,
 	ListFilterIcon,
 	SearchIcon,
+	TagIcon,
 	XIcon
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
@@ -22,6 +23,11 @@ import {
 	SelectValue
 } from '@/components/ui/select';
 import {
+	PLACE_CATEGORY_VALUES,
+	placeCategoryLabel
+} from '@/lib/place-category';
+import {
+	CATEGORY_PARAM,
 	FILTER_PARAMS,
 	QUERY_PARAM,
 	SORT_PARAM,
@@ -29,9 +35,10 @@ import {
 } from '@/lib/place-filters';
 import { cn } from '@/lib/utils';
 import { wouldReturnLabel } from '@/lib/would-return';
-import type { Place, WouldReturn } from '@/types/place';
+import type { Place, PlaceCategory, WouldReturn } from '@/types/place';
 
 type StatusFilter = WouldReturn | 'all';
+type CategoryFilter = PlaceCategory | 'all';
 type SortOption = 'recent' | 'oldest' | 'status';
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
@@ -39,6 +46,14 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 	{ value: 'yes', label: wouldReturnLabel.yes },
 	{ value: 'maybe', label: wouldReturnLabel.maybe },
 	{ value: 'no', label: wouldReturnLabel.no }
+];
+
+const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
+	{ value: 'all', label: 'Todas las categorías' },
+	...PLACE_CATEGORY_VALUES.map(value => ({
+		value,
+		label: placeCategoryLabel[value]
+	}))
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -99,6 +114,13 @@ export function PlacesList({ places }: PlacesListProps) {
 	const [status, setStatus] = useState(() =>
 		optionOrDefault(STATUS_FILTERS, searchParams.get(STATUS_PARAM), 'all')
 	);
+	const [category, setCategory] = useState(() =>
+		optionOrDefault(
+			CATEGORY_FILTERS,
+			searchParams.get(CATEGORY_PARAM),
+			'all'
+		)
+	);
 	const [sort, setSort] = useState(() =>
 		optionOrDefault(SORT_OPTIONS, searchParams.get(SORT_PARAM), 'recent')
 	);
@@ -137,12 +159,15 @@ export function PlacesList({ places }: PlacesListProps) {
 		if (status !== 'all') {
 			params.set(STATUS_PARAM, status);
 		}
+		if (category !== 'all') {
+			params.set(CATEGORY_PARAM, category);
+		}
 		if (sort !== 'recent') {
 			params.set(SORT_PARAM, sort);
 		}
 
 		return params.toString();
-	}, [query, status, sort]);
+	}, [query, status, category, sort]);
 
 	const [linkSearch, setLinkSearch] = useState(filterSearch);
 
@@ -181,9 +206,10 @@ export function PlacesList({ places }: PlacesListProps) {
 			places.filter(
 				place =>
 					matchesQuery(place, query) &&
-					(status === 'all' || place.wouldReturn === status)
+					(status === 'all' || place.wouldReturn === status) &&
+					(category === 'all' || place.category === category)
 			),
-		[places, query, status]
+		[places, query, status, category]
 	);
 
 	// getPlaces() already returns newest first, so 'oldest' is that same list
@@ -209,11 +235,13 @@ export function PlacesList({ places }: PlacesListProps) {
 		return <PlacesEmptyState />;
 	}
 
-	const filtersActive = query !== '' || status !== 'all';
+	const filtersActive =
+		query !== '' || status !== 'all' || category !== 'all';
 
 	function clearFilters() {
 		setQuery('');
 		setStatus('all');
+		setCategory('all');
 	}
 
 	return (
@@ -296,6 +324,34 @@ export function PlacesList({ places }: PlacesListProps) {
 						</SelectTrigger>
 						<SelectContent>
 							{STATUS_FILTERS.map(filter => (
+								<SelectItem
+									key={filter.value}
+									value={filter.value}
+								>
+									{filter.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+
+					<Select
+						items={CATEGORY_FILTERS}
+						value={category}
+						onValueChange={value => setCategory(value ?? 'all')}
+					>
+						<SelectTrigger
+							size="sm"
+							aria-label="Filtrar por categoría"
+							className="min-h-9 sm:min-h-0"
+						>
+							<TagIcon
+								className="text-muted-foreground size-3.5"
+								aria-hidden="true"
+							/>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{CATEGORY_FILTERS.map(filter => (
 								<SelectItem
 									key={filter.value}
 									value={filter.value}
