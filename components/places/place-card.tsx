@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { PlaceCategoryBadge } from '@/components/places/place-category-badge';
 import { WouldReturnBadge } from '@/components/places/would-return-badge';
 import { cn } from '@/lib/utils';
 import type { Place, WouldReturn } from '@/types/place';
@@ -57,10 +58,10 @@ export function PlaceCard({ place, index, listSearch }: PlaceCardProps) {
 						{description}
 					</p>
 				)}
-				<WouldReturnBadge
-					value={place.wouldReturn}
-					className="mt-auto self-start"
-				/>
+				<div className="mt-auto flex flex-wrap items-center gap-1.5">
+					<WouldReturnBadge value={place.wouldReturn} />
+					<PlaceCategoryBadge value={place.category} />
+				</div>
 			</Link>
 		</li>
 	);

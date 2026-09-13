@@ -14,6 +14,7 @@ import {
 	deletePlace as deletePlaceRow,
 	getPlaceById,
 	insertPlace,
+	setPlaceShareDescription,
 	setPlaceShareToken,
 	updatePlace as updatePlaceRow
 } from '@/lib/places';
@@ -181,6 +182,31 @@ export async function ensureShareLink(id: string): Promise<ShareLinkState> {
 		console.error('[places] ensureShareLink failed:', err);
 		return { ok: false };
 	}
+}
+
+// Takes effect on the link that is already out there: the public page reads
+// the flag on every visit, so there is no new link to hand out. `shared` is
+// coerced rather than trusted — a Server Action's arguments come from the
+// network, whatever the type says.
+export async function setShareDescription(
+	id: string,
+	shared: boolean
+): Promise<{ ok: boolean }> {
+	const user = await getUser();
+	if (!user) {
+		console.error('[places] setShareDescription: not signed in');
+		return { ok: false };
+	}
+
+	try {
+		await setPlaceShareDescription(id, shared === true);
+		revalidatePath(`/places/${id}`);
+	} catch (err) {
+		console.error('[places] setShareDescription failed:', err);
+		return { ok: false };
+	}
+
+	return { ok: true };
 }
 
 // Revoking is just clearing the column: every copy of the link dies at once,

@@ -3,7 +3,11 @@
 import { CheckIcon, CopyIcon, Share2Icon } from 'lucide-react';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
-import { ensureShareLink, revokeShareLink } from '@/app/places/actions';
+import {
+	ensureShareLink,
+	revokeShareLink,
+	setShareDescription
+} from '@/app/places/actions';
 import { showFlash } from '@/components/flash-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,12 +20,18 @@ import {
 	DialogTrigger
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 interface SharePlaceButtonProps {
 	placeId: string;
 	placeName: string;
 	// Absent until the place has been shared at least once.
 	shareToken?: string;
+	// Whether there are notes to offer at all: with none, the switch below
+	// would be a decision about nothing.
+	hasNotes: boolean;
+	shareDescription?: boolean;
 }
 
 const COPIED_FEEDBACK_MS = 2000;
@@ -34,10 +44,13 @@ const subscribeToNothing = () => () => {};
 export function SharePlaceButton({
 	placeId,
 	placeName,
-	shareToken
+	shareToken,
+	hasNotes,
+	shareDescription = false
 }: SharePlaceButtonProps) {
 	const [open, setOpen] = useState(false);
 	const [token, setToken] = useState(shareToken);
+	const [notesShared, setNotesShared] = useState(shareDescription);
 	const [pending, setPending] = useState(false);
 	const [copied, setCopied] = useState(false);
 
@@ -117,6 +130,18 @@ export function SharePlaceButton({
 		}
 	};
 
+	// Flipped on screen first and put back if the save fails: a switch that
+	// waits for the round trip before moving reads as broken.
+	const handleNotesChange = async (shared: boolean) => {
+		setNotesShared(shared);
+		const result = await setShareDescription(placeId, shared);
+
+		if (!result.ok) {
+			setNotesShared(!shared);
+			showFlash('share-notes-error');
+		}
+	};
+
 	const handleRevoke = async () => {
 		setPending(true);
 		const result = await revokeShareLink(placeId);
@@ -128,6 +153,8 @@ export function SharePlaceButton({
 		}
 
 		setToken(undefined);
+		// Mirrors what revoking does in the database — see setPlaceShareToken.
+		setNotesShared(false);
 		setOpen(false);
 		showFlash('share-link-revoked');
 	};
@@ -146,11 +173,35 @@ export function SharePlaceButton({
 				<DialogHeader>
 					<DialogTitle>Compartir «{placeName}»</DialogTitle>
 					<DialogDescription>
-						Cualquiera con el enlace verá la ubicación, los
-						teléfonos, la web y las fotos. Tus notas no se
-						comparten.
+						Cualquiera con el enlace verá la categoría, la
+						ubicación, los teléfonos, la web y las fotos.{' '}
+						{notesShared
+							? 'Tus notas también.'
+							: 'Tus notas no se comparten.'}
 					</DialogDescription>
 				</DialogHeader>
+
+				{hasNotes && (
+					<div className="flex items-center justify-between gap-4">
+						<div className="flex flex-col gap-0.5">
+							<Label htmlFor="share-notes">
+								Incluir mis notas
+							</Label>
+							<p className="text-muted-foreground text-xs">
+								Se puede cambiar en cualquier momento; el enlace
+								es el mismo.
+							</p>
+						</div>
+						<Switch
+							id="share-notes"
+							checked={notesShared}
+							onCheckedChange={checked =>
+								void handleNotesChange(checked)
+							}
+							disabled={!token}
+						/>
+					</div>
+				)}
 
 				{url ? (
 					<div className="flex gap-2">

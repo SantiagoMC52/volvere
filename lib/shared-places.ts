@@ -3,7 +3,7 @@ import { cache } from 'react';
 import { signImagePaths } from '@/lib/place-images';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import type { PlaceImage, SharedPlace } from '@/types/place';
+import type { PlaceCategory, PlaceImage, SharedPlace } from '@/types/place';
 
 // Reading by token goes through two security definer functions instead of the
 // tables: `anon` has no grant on public.places at all, and giving it one would
@@ -16,6 +16,10 @@ import type { PlaceImage, SharedPlace } from '@/types/place';
 
 interface SharedPlaceRow {
 	name: string;
+	category: PlaceCategory;
+	// Null both when there are no notes and when they are not shared; the
+	// function makes no difference between the two, on purpose.
+	description: string | null;
 	location: string | null;
 	phone: string | null;
 	phone_secondary: string | null;
@@ -51,6 +55,8 @@ export const getSharedPlace = cache(
 
 		return {
 			name: row.name,
+			category: row.category,
+			description: row.description ?? undefined,
 			location: row.location ?? undefined,
 			phone: row.phone ?? undefined,
 			phoneSecondary: row.phone_secondary ?? undefined,
