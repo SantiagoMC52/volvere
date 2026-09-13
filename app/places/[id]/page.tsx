@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { DeletePlaceButton } from '@/components/places/delete-place-button';
+import { PlaceCategoryBadge } from '@/components/places/place-category-badge';
 import { PlaceField } from '@/components/places/place-field';
 import { PlaceFormDialog } from '@/components/places/place-form-dialog';
 import { PlaceGallery } from '@/components/places/place-gallery';
@@ -63,10 +64,16 @@ export default async function PlacePage({
 					<h1 className="text-3xl font-semibold tracking-tight wrap-anywhere">
 						{place.name}
 					</h1>
-					<WouldReturnBadge
-						value={place.wouldReturn}
-						className="px-3 py-1 text-sm"
-					/>
+					<div className="flex flex-wrap items-center gap-2">
+						<WouldReturnBadge
+							value={place.wouldReturn}
+							className="px-3 py-1 text-sm"
+						/>
+						<PlaceCategoryBadge
+							value={place.category}
+							className="px-3 py-1 text-sm"
+						/>
+					</div>
 					<p className="text-muted-foreground text-xs">
 						Guardado el{' '}
 						<time dateTime={place.createdAt}>
@@ -80,6 +87,8 @@ export default async function PlacePage({
 						placeId={place.id}
 						placeName={place.name}
 						shareToken={place.shareToken}
+						hasNotes={description !== ''}
+						shareDescription={place.shareDescription}
 					/>
 					<PlaceFormDialog place={place} images={images} />
 					<DeletePlaceButton

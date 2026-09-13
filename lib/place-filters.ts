@@ -2,9 +2,15 @@ import { firstParam } from '@/lib/utils';
 
 export const QUERY_PARAM = 'q';
 export const STATUS_PARAM = 'status';
+export const CATEGORY_PARAM = 'category';
 export const SORT_PARAM = 'sort';
 
-export const FILTER_PARAMS = [QUERY_PARAM, STATUS_PARAM, SORT_PARAM] as const;
+export const FILTER_PARAMS = [
+	QUERY_PARAM,
+	STATUS_PARAM,
+	CATEGORY_PARAM,
+	SORT_PARAM
+] as const;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

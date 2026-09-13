@@ -56,6 +56,10 @@ export const FLASH_MESSAGES = {
 		type: 'error',
 		description: 'Error con el enlace para compartir.'
 	},
+	'share-notes-error': {
+		type: 'error',
+		description: 'No se ha podido cambiar si se comparten las notas.'
+	},
 	'image-upload-error': {
 		type: 'error',
 		description: 'Error al subir las fotos.'

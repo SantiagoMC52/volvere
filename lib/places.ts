@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { Place, WouldReturn } from '@/types/place';
+import type { Place, PlaceCategory, WouldReturn } from '@/types/place';
 
 export { wouldReturnLabel } from '@/lib/would-return';
 
@@ -14,19 +14,21 @@ interface PlaceRow {
 	phone_secondary: string | null;
 	url: string | null;
 	would_return: WouldReturn;
+	category: PlaceCategory;
 	created_at: string;
 	// Absent from the listing query — see below.
 	share_token?: string | null;
+	share_description?: boolean;
 }
 
 const LIST_COLUMNS =
-	'id, name, description, location, phone, phone_secondary, url, would_return, created_at';
+	'id, name, description, location, phone, phone_secondary, url, would_return, category, created_at';
 
 // The token is the credential for a place's public link, and the listing hands
 // its rows to a client component: selecting it there would ship every token
 // the account has into the browser on every load, to render nothing. Only the
 // detail page asks for it, and only that page has the button that uses it.
-const PLACE_COLUMNS = `${LIST_COLUMNS}, share_token`;
+const PLACE_COLUMNS = `${LIST_COLUMNS}, share_token, share_description`;
 
 function toPlace(row: PlaceRow): Place {
 	return {
@@ -38,8 +40,10 @@ function toPlace(row: PlaceRow): Place {
 		phoneSecondary: row.phone_secondary ?? undefined,
 		url: row.url ?? undefined,
 		wouldReturn: row.would_return,
+		category: row.category,
 		createdAt: row.created_at,
-		shareToken: row.share_token ?? undefined
+		shareToken: row.share_token ?? undefined,
+		shareDescription: row.share_description
 	};
 }
 
@@ -91,6 +95,7 @@ export interface PlaceInput {
 	phoneSecondary: string | null;
 	url: string | null;
 	wouldReturn: WouldReturn;
+	category: PlaceCategory;
 }
 
 function toRow(input: PlaceInput) {
@@ -101,7 +106,8 @@ function toRow(input: PlaceInput) {
 		phone: input.phone,
 		phone_secondary: input.phoneSecondary,
 		url: input.url,
-		would_return: input.wouldReturn
+		would_return: input.wouldReturn,
+		category: input.category
 	};
 }
 
@@ -142,8 +148,12 @@ export async function updatePlace(
 }
 
 // Writing a token publishes the place; writing null revokes every copy of the
-// link that was ever handed out. `toRow` deliberately doesn't carry this
-// column, so editing a place leaves its link alone.
+// link that was ever handed out. `toRow` deliberately doesn't carry these
+// columns, so editing a place leaves its link alone.
+//
+// Revoking also switches the notes back off. The next time this place is
+// shared — maybe months from now — it should start out as private as a place
+// shared for the first time, not however it was left.
 export async function setPlaceShareToken(
 	id: string,
 	token: string | null
@@ -151,12 +161,33 @@ export async function setPlaceShareToken(
 	const supabase = await createClient();
 	const { error } = await supabase
 		.from('places')
-		.update({ share_token: token })
+		.update(
+			token
+				? { share_token: token }
+				: { share_token: null, share_description: false }
+		)
 		.eq('id', id);
 
 	if (error) {
 		throw new Error(
 			`No se ha podido cambiar el enlace del sitio: ${error.message}`
+		);
+	}
+}
+
+export async function setPlaceShareDescription(
+	id: string,
+	shared: boolean
+): Promise<void> {
+	const supabase = await createClient();
+	const { error } = await supabase
+		.from('places')
+		.update({ share_description: shared })
+		.eq('id', id);
+
+	if (error) {
+		throw new Error(
+			`No se ha podido cambiar qué comparte el sitio: ${error.message}`
 		);
 	}
 }

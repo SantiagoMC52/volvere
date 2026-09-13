@@ -56,11 +56,22 @@ import {
 	URL_MAX
 } from '@/lib/place-limits';
 import { digitsOnly } from '@/lib/phone';
+import {
+	PLACE_CATEGORY_VALUES,
+	placeCategoryLabel
+} from '@/lib/place-category';
 import { removeUploadedImages, uploadPlaceImages } from '@/lib/upload-images';
 import { WOULD_RETURN_VALUES, wouldReturnLabel } from '@/lib/would-return';
-import type { Place, PlaceImage, WouldReturn } from '@/types/place';
+import type {
+	Place,
+	PlaceCategory,
+	PlaceImage,
+	WouldReturn
+} from '@/types/place';
 
 const initialState: PlaceFormState = null;
+
+const SELECT_FIELDS = new Set(['wouldReturn', 'category']);
 
 // A name rarely goes near 50 characters, so its counter stays out of the way
 // until the limit is close enough to matter.
@@ -138,9 +149,9 @@ function PhoneField({
 }
 
 // The form's values as one comparable string. Trimmed, like the Server Action
-// trims. `wouldReturn` is left out and compared from state instead: Base UI
-// writes it into its hidden input after this has already run, so reading it
-// here would always be one selection behind.
+// trims. The selects are left out and compared from state instead: Base UI
+// writes their value into a hidden input after this has already run, so
+// reading them here would always be one selection behind.
 //
 // Empty fields are dropped rather than compared as '': the second phone comes
 // and goes from the DOM, and FormData only reports what is in it, so an empty
@@ -149,7 +160,7 @@ function serializeFields(form: HTMLFormElement) {
 	return JSON.stringify(
 		[...new FormData(form)]
 			.map(([name, value]) => [name, String(value).trim()])
-			.filter(([name, value]) => name !== 'wouldReturn' && value !== '')
+			.filter(([name, value]) => !SELECT_FIELDS.has(name) && value !== '')
 	);
 }
 
@@ -235,12 +246,15 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 		syncFieldsDirty();
 	}
 
-	// The one field that has to be controlled anyway. Base UI writes the
-	// select's value into a hidden input from React, which fires no `input`
-	// event for the form-level listener below to catch, so its value is held
-	// here and compared on its own.
+	// The fields that have to be controlled anyway. Base UI writes a select's
+	// value into a hidden input from React, which fires no `input` event for
+	// the form-level listener below to catch, so their values are held here
+	// and compared on their own.
 	const [wouldReturn, setWouldReturn] = useState<WouldReturn | null>(
 		() => place?.wouldReturn ?? null
+	);
+	const [category, setCategory] = useState<PlaceCategory | null>(
+		() => place?.category ?? null
 	);
 
 	const [lastOpen, setLastOpen] = useState(open);
@@ -253,6 +267,7 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 			setFieldsDirty(false);
 			setShowSecondPhone(Boolean(place?.phoneSecondary));
 			setWouldReturn(place?.wouldReturn ?? null);
+			setCategory(place?.category ?? null);
 		}
 	}
 
@@ -374,7 +389,8 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 		!place ||
 		fieldsDirty ||
 		imagesDirty ||
-		wouldReturn !== place.wouldReturn;
+		wouldReturn !== place.wouldReturn ||
+		category !== place.category;
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -463,6 +479,28 @@ export function PlaceFormDialog({ place, images = [] }: PlaceFormDialogProps) {
 								defaultValue={place?.name}
 								required
 							/>
+						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="category">Categoría</Label>
+							<Select
+								name="category"
+								required
+								items={placeCategoryLabel}
+								value={category}
+								onValueChange={setCategory}
+							>
+								<SelectTrigger id="category" className="w-full">
+									<SelectValue placeholder="Elige una categoría" />
+								</SelectTrigger>
+								<SelectContent>
+									{PLACE_CATEGORY_VALUES.map(value => (
+										<SelectItem key={value} value={value}>
+											{placeCategoryLabel[value]}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 
 						<div className="flex flex-col gap-1.5">
