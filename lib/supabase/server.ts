@@ -43,3 +43,18 @@ export const getUser = cache(async () => {
 
 	return user;
 });
+
+// Local JWT verification only — no round trip to Supabase Auth. The root
+// layout uses it so the HTML shell can stream before the first network call:
+// with getUser() there, nothing reached the browser (not even a loading
+// skeleton) until Auth had answered. The claims carry email and user_metadata,
+// which is all the header needs. Not a substitute for getUser() where data is
+// at stake: a revoked session still holds a valid-looking token until it
+// expires. The signing keys come from a process-wide cache the proxy has
+// already warmed, so this never fetches them itself in practice.
+export const getClaims = cache(async () => {
+	const supabase = await createClient();
+	const { data } = await supabase.auth.getClaims();
+
+	return data?.claims ?? null;
+});
