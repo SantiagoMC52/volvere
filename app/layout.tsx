@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
 import './globals.css';
 
-import { getUser } from '@/lib/supabase/server';
+import { getClaims } from '@/lib/supabase/server';
 import { VolvereMark } from '@/components/icons/volvere';
 import { Toaster } from '@/components/ui/toast';
 import { UserMenu } from '@/components/user-menu';
@@ -36,11 +36,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
-	const user = await getUser();
+	const claims = await getClaims();
 
 	// `user_metadata` is untyped JSON. Google fills both keys on sign-in, but
 	// nothing guarantees it, so treat them as optional.
-	const { full_name: name, avatar_url: avatarUrl } = (user?.user_metadata ??
+	const { full_name: name, avatar_url: avatarUrl } = (claims?.user_metadata ??
 		{}) as {
 		full_name?: string;
 		avatar_url?: string;
@@ -52,7 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
 			className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
 		>
 			<body className="min-h-full flex flex-col">
-				{user && (
+				{claims && (
 					<header className="flex items-center justify-between gap-4 px-4 pt-6 pb-4 sm:px-8 sm:pt-8">
 						<h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
 							<Link
@@ -66,7 +66,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
 
 						<UserMenu
 							// Typed optional, but Google always returns an email.
-							email={user.email ?? ''}
+							email={claims.email ?? ''}
 							name={name}
 							avatarUrl={avatarUrl}
 						/>
